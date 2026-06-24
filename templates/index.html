@@ -32,21 +32,7 @@
           <div class="juice-splash juice-splash-b"></div>
           <div class="apple-shadow"></div>
           <div class="apple-mark">
-            <svg class="apple-illustration" viewBox="0 0 180 190" role="img" aria-label="빨간 사과">
-              <defs>
-                <radialGradient id="appleGlow" cx="34%" cy="28%" r="74%"><stop offset="0%" stop-color="#ffb4b4" /><stop offset="34%" stop-color="#f43f5e" /><stop offset="74%" stop-color="#dc2626" /><stop offset="100%" stop-color="#991b1b" /></radialGradient>
-                <linearGradient id="leafGlow" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#bbf7d0" /><stop offset="45%" stop-color="#22c55e" /><stop offset="100%" stop-color="#15803d" /></linearGradient>
-                <linearGradient id="stemGlow" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#a16207" /><stop offset="100%" stop-color="#713f12" /></linearGradient>
-                <filter id="appleSoftShadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="18" stdDeviation="10" flood-color="#7f1d1d" flood-opacity="0.28" /></filter>
-              </defs>
-              <path class="apple-fruit" filter="url(#appleSoftShadow)" fill="url(#appleGlow)" d="M91 58c16-22 49-20 64 1 18 25 7 83-22 109-15 14-31 11-43 3-12 8-30 11-45-3C16 141 6 84 24 59c15-21 48-23 64-1 1 1 2 1 3 0Z" />
-              <path fill="rgba(255,255,255,0.16)" d="M41 70c15-18 39-18 50-1-15-5-38-2-54 25-1-9 0-17 4-24Z" />
-              <path class="apple-stem-svg" fill="url(#stemGlow)" d="M93 52c-5-23 2-40 19-50 7 21-1 39-19 50Z" />
-              <path class="apple-leaf-svg" fill="url(#leafGlow)" d="M110 37c17-24 45-27 61-16-8 25-38 34-61 16Z" />
-              <path fill="none" stroke="rgba(21,128,61,0.45)" stroke-linecap="round" stroke-width="4" d="M119 34c13-5 25-8 39-8" />
-              <ellipse fill="rgba(255,255,255,0.72)" cx="54" cy="89" rx="15" ry="25" transform="rotate(28 54 89)" />
-              <circle fill="rgba(255,255,255,0.38)" cx="76" cy="65" r="8" />
-            </svg>
+            <img class="apple-illustration" src="/img/test3.png" alt="Sportsmate 사과 로고" />
           </div>
           <div class="juice-ripples"><span></span><span></span><span></span></div>
         </div>
@@ -59,7 +45,7 @@
 
     <main id="app" class="min-h-screen opacity-0">
       <aside class="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-brand-900 px-5 py-6 text-white lg:flex">
-        <a class="mb-9 flex items-center gap-3 font-black" href="#home"><span class="grid h-10 w-10 place-items-center rounded bg-white text-brand-700"><i data-lucide="apple" class="h-5 w-5"></i></span>SPORTSMATE</a>
+        <a class="mb-9 flex items-center gap-3 font-black" href="#home"><span class="brand-logo-box"><img src="/img/test3.png" alt="Sportsmate 로고" /></span>SPORTSMATE</a>
         <nav id="side-nav" class="space-y-2 text-sm font-semibold"></nav>
         <a href="#board" class="mt-auto flex items-center justify-center gap-2 rounded bg-skyline px-4 py-3 text-sm font-black text-white"><i data-lucide="plus" class="h-5 w-5"></i>모임 만들기</a>
       </aside>
@@ -95,6 +81,160 @@
 
       const view = document.getElementById("view");
       const joinedStates = new Set(["host", "joined"]);
+      const sportGroups = [
+        { group: "구기 종목", purpose: "팀 모집 / 친선전", items: ["축구", "풋살", "농구", "배구", "야구", "족구"] },
+        { group: "라켓 스포츠", purpose: "파트너 모집 / 친선전", items: ["배드민턴", "탁구", "테니스", "스쿼시"] },
+        { group: "러닝 / 야외", purpose: "동행 모집 / 팀 모집", items: ["러닝", "등산", "트래킹", "자전거", "산책"] },
+        { group: "피트니스", purpose: "파트너 모집 / 운동 메이트 모집", items: ["헬스", "크로스핏", "클라이밍", "요가", "필라테스"] },
+        { group: "기타", purpose: "파트너 모집", items: ["볼링", "당구", "골프", "수영"] }
+      ];
+      const allSports = sportGroups.flatMap((group) => group.items);
+      const regionGroups = [
+        { group: "서울특별시", items: ["여의도", "잠실", "마포", "강남", "홍대", "성수", "관악"] },
+        { group: "경기도", items: ["수원", "성남", "고양", "용인", "부천", "안양", "하남"] },
+        { group: "인천광역시", items: ["송도", "부평", "청라", "계양", "남동"] },
+        { group: "부산광역시", items: ["해운대", "서면", "광안리", "동래"] }
+      ];
+      const allRegions = regionGroups.flatMap((group) => group.items);
+
+      function routeParams() {
+        const raw = (location.hash || "#home").replace("#", "");
+        const [name, query = ""] = raw.split("?");
+        return { name, params: new URLSearchParams(query) };
+      }
+
+      function filteredMeetings(prefix = "board") {
+        const { params } = routeParams();
+        const sport = params.get("sport") || "";
+        const sports = (params.get("sports") || "").split(",").filter(Boolean);
+        const group = params.get("group") || "";
+        const status = params.get("status") || "";
+        const region = params.get("region") || "";
+        const regions = (params.get("regions") || "").split(",").filter(Boolean);
+        const regionGroup = params.get("regionGroup") || "";
+        const query = (params.get("q") || "").trim().toLowerCase();
+        const place = (params.get("place") || "").trim().toLowerCase();
+        return meetings.filter((item) => {
+          const haystack = `${item.title} ${item.sport} ${item.place} ${item.host} ${item.desc} ${item.tags.join(" ")}`.toLowerCase();
+          const statusOk = !status || (status === "joined" ? joinedStates.has(item.state) : item.state === status);
+          const groupOk = !group || sportsByGroup(group).includes(item.sport) || item.tags.some((tag) => sportsByGroup(group).includes(tag));
+          const regionItems = regionGroup ? regionsByGroup(regionGroup) : allRegions;
+          const regionOk = regions.length ? regions.some((name) => item.place.includes(name)) : (!region && !regionGroup ? true : region ? item.place.includes(region) : regionItems.some((name) => item.place.includes(name)));
+          const sportOk = sports.length ? sports.some((name) => item.sport === name || item.tags.includes(name)) : (!sport || item.sport === sport || item.tags.includes(sport));
+          return groupOk && regionOk && sportOk && statusOk && (!query || haystack.includes(query)) && (!place || item.place.toLowerCase().includes(place));
+        });
+      }
+
+      function setRouteParam(routeName, key, value) {
+        const params = routeParams().params;
+        if (value) params.set(key, value); else params.delete(key);
+        location.hash = `#${routeName}${params.toString() ? `?${params.toString()}` : ""}`;
+      }
+
+      window.setBoardParam = (key, value) => setRouteParam("board", key, value);
+      window.setMapParam = (key, value) => setRouteParam("map", key, value);
+      window.applyBoardSearch = () => setBoardParam("q", document.getElementById("board-search")?.value || "");
+      window.applyMapSearch = () => setMapParam("q", document.getElementById("map-search")?.value || "");
+      window.applyMapPlace = () => setMapParam("place", document.getElementById("map-place")?.value || "");
+
+      function sportOptions(selected = "") {
+        return `<option value="">전체 종목</option>${allSports.map((sport) => `<option value="${sport}" ${selected === sport ? "selected" : ""}>${sport}</option>`).join("")}`;
+      }
+      function sportGroupOptions(selected = "") {
+        return `<option value="">전체 대분류</option>${sportGroups.map((group) => `<option value="${group.group}" ${selected === group.group ? "selected" : ""}>${group.group}</option>`).join("")}`;
+      }
+
+      function sportsByGroup(groupName) {
+        const group = sportGroups.find((item) => item.group === groupName);
+        return group ? group.items : allSports;
+      }
+
+      function sportGroupFor(sportName) {
+        return sportGroups.find((group) => group.items.includes(sportName))?.group || "";
+      }
+
+      function sportSubOptions(groupName = "", selected = "") {
+        const items = sportsByGroup(groupName);
+        return `<option value="">전체 소분류</option>${items.map((sport) => `<option value="${sport}" ${selected === sport ? "selected" : ""}>${sport}</option>`).join("")}`;
+      }
+
+      function setBoardGroup(value) {
+        const params = routeParams().params;
+        if (value) params.set("group", value); else params.delete("group");
+        params.delete("sport");
+        location.hash = `#board${params.toString() ? `?${params.toString()}` : ""}`;
+      }
+      function regionGroupOptions(selected = "") {
+        return `<option value="">전체 지역</option>${regionGroups.map((group) => `<option value="${group.group}" ${selected === group.group ? "selected" : ""}>${group.group}</option>`).join("")}`;
+      }
+
+      function regionsByGroup(groupName) {
+        const group = regionGroups.find((item) => item.group === groupName);
+        return group ? group.items : allRegions;
+      }
+
+      function regionGroupFor(regionName) {
+        return regionGroups.find((group) => group.items.includes(regionName))?.group || "";
+      }
+
+      function regionSubOptions(groupName = "", selected = "") {
+        const items = regionsByGroup(groupName);
+        return `<option value="">전체 시/구</option>${items.map((region) => `<option value="${region}" ${selected === region ? "selected" : ""}>${region}</option>`).join("")}`;
+      }
+
+      function setBoardRegionGroup(value) {
+        const params = routeParams().params;
+        if (value) params.set("regionGroup", value); else params.delete("regionGroup");
+        params.delete("region");
+        location.hash = `#board${params.toString() ? `?${params.toString()}` : ""}`;
+      }
+
+      function currentHomeSearchHash() {
+        const sports = [...document.querySelectorAll('[name="home-sport"]:checked')].map((item) => item.value);
+        const regions = [...document.querySelectorAll('[name="home-region"]:checked')].map((item) => item.value);
+        const params = new URLSearchParams();
+        if (sports.length) params.set("sports", sports.join(","));
+        if (regions.length) params.set("regions", regions.join(","));
+        return `#board${params.toString() ? `?${params.toString()}` : ""}`;
+      }
+
+      function updateHomeSearchButton() {
+        const button = document.getElementById("home-match-button");
+        if (!button) return;
+        const selectedSports = [...document.querySelectorAll('[name="home-sport"]:checked')].map((item) => item.value);
+        const selectedRegions = [...document.querySelectorAll('[name="home-region"]:checked')].map((item) => item.value);
+        const hasValue = selectedSports.length > 0 || selectedRegions.length > 0;
+        button.textContent = hasValue ? "매칭하기" : "전체검색";
+        button.href = currentHomeSearchHash();
+        renderSelectedSummary("sport", selectedSports);
+        renderSelectedSummary("region", selectedRegions);
+      }
+
+
+      function renderSelectedSummary(type, values) {
+        const target = document.querySelector(`[data-selected-summary="${type}"]`);
+        if (!target) return;
+        target.innerHTML = values.length ? values.map((value) => `<span>${value}</span>`).join("") : `<em>선택 없음</em>`;
+      }      window.toggleHomeChoice = function toggleHomeChoice(name, value) {
+        const current = document.querySelector(`[name="${name}"][value="${value}"]`);
+        if (current?.checked) current.checked = false;
+        else if (current) current.checked = true;
+        updateHomeSearchButton();
+      };
+      window.selectHomeRegionGroup = function selectHomeRegionGroup(groupName) {
+        document.querySelectorAll(".home-region-tab").forEach((button) => button.classList.toggle("is-active", button.dataset.regionGroup === groupName));
+        document.querySelectorAll(".home-region-panel").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.regionGroup === groupName));
+      };
+
+      window.toggleHomeSection = function toggleHomeSection(button) {
+        const section = button.closest(".home-choice-group");
+        section?.classList.toggle("is-collapsed");
+        button.setAttribute("aria-expanded", String(!section?.classList.contains("is-collapsed")));
+      };
+
+      function boardRows(items) {
+        return items.length ? items.map((m) => `<a href="${detailHash(m)}" class="board-row board-row-state"><span><img src="${m.img}" alt=""><b>${m.title}</b><small>${m.place}</small></span><span>${stateBadge(m)}</span><span>${m.sport}</span><span>${m.place}</span><span>${m.time}</span><span>${m.member}</span><strong>★ ${m.rating}</strong></a>`).join("") : `<div class="empty-result"><i data-lucide="search-x"></i><b>조건에 맞는 모임이 없습니다.</b><span>검색어와 필터를 조금 넓혀보세요.</span></div>`;
+      }
 
       function memberCount(item) {
         return `${item.member.split("/")[0]}명`;
@@ -160,10 +300,10 @@
             <div class="home-main-copy"><p>오늘도 함께,</p><h1>스포츠로 연결되는 하루</h1></div>
             <a href="#board" class="home-search"><i data-lucide="search"></i><span>지역, 종목, 모임명을 검색하세요</span><b>검색</b></a>
             <div class="home-visual"><div class="home-hills"></div><div class="home-runner runner-one"><span></span></div><div class="home-runner runner-two"><span></span></div></div>
-            <div class="home-categories">${[["calendar-days","전체 모임"],["circle-dot","농구"],["goal","축구"],["footprints","러닝"],["dumbbell","헬스"],["mountain","등산"],["bike","자전거"]].map(([icon,label]) => `<a href="#board"><i data-lucide="${icon}"></i><span>${label}</span></a>`).join("")}</div>
+            <div class="home-categories">${[["circle-dot","농구"],["goal","축구"],["footprints","러닝"],["dumbbell","헬스"],["mountain","등산"],["bike","자전거"]].map(([icon,label]) => `<a href="#board"><i data-lucide="${icon}"></i><span>${label}</span></a>`).join("")}</div>
           </section>
           <section class="home-recommend"><div class="section-head"><h2>추천 모임</h2><a href="#board">전체 보기</a></div><div class="home-card-grid">${meetings.slice(0, 4).map(meetingCard).join("")}</div></section>`,
-        board: () => `${pageTitle("모임 게시판", "모임 상태를 확인하고 각 게시글 상세로 들어갑니다.")}<div class="page-card"><div class="filter-bar"><button class="tab-on">전체</button><button>참여중</button><button>모집중</button><button>러닝</button><button>농구</button><select><option>전체 지역</option></select><select><option>최신순</option></select></div><div class="board-table"><div class="board-head"><span>모임 정보</span><span>상태</span><span>지역</span><span>일시</span><span>참여/정원</span><span>평점</span></div>${meetings.map((m) => `<a href="${detailHash(m)}" class="board-row board-row-state"><span><img src="${m.img}" alt=""><b>${m.title}</b><small>${m.place}</small></span><span>${stateBadge(m)}</span><span>${m.place}</span><span>${m.time}</span><span>${m.member}</span><strong>★ ${m.rating}</strong></a>`).join("")}</div></div>`,
+        board: () => `${pageTitle("모임 게시판", "모임 상태를 확인하고 각 게시글 상세로 들어갑니다.")}<div class="page-card"><div class="filter-bar"><button class="tab-on">전체</button><button>모집중</button><button>러닝</button><button>농구</button><select><option>전체 지역</option></select><select><option>최신순</option></select></div><div class="board-table"><div class="board-head"><span>모임 정보</span><span>상태</span><span>지역</span><span>일시</span><span>참여/정원</span><span>평점</span></div>${meetings.map((m) => `<a href="${detailHash(m)}" class="board-row board-row-state"><span><img src="${m.img}" alt=""><b>${m.title}</b><small>${m.place}</small></span><span>${stateBadge(m)}</span><span>${m.place}</span><span>${m.time}</span><span>${m.member}</span><strong>★ ${m.rating}</strong></a>`).join("")}</div></div>`,
         detail: () => detailPage(meetings[0]),
         chat: (selectedId = null) => { const chatMeetings = meetings.filter((m) => joinedStates.has(m.state)); const selected = selectedId === null ? null : chatMeetings.find((m) => m.id === Number(selectedId)); return `${pageTitle("내 톡", "참여 중인 모임 톡방을 한곳에서 확인합니다.")}<div class="talk-layout"><aside class="page-card talk-list"><div class="talk-list-head"><h2>참여중인 톡방</h2><span>${chatMeetings.length}</span></div>${chatMeetings.map((m, i) => `<button type="button" class="talk-room-item ${selected?.id === m.id ? 'selected' : ''}" data-chat-id="${m.id}" onclick="previewTalkRoom(${m.id})" ondblclick="openTalkRoom(${m.id})"><img src="${m.img}" alt="${m.title}"><span><b>${m.title}</b><small>${m.place} · ${memberCount(m)}</small></span><em>${i === 0 ? '방금' : '14:' + (30 - i * 4)}</em></button>`).join("")}</aside>${selected ? talkRoomPanel(selected) : talkEmptyPanel()}</div>`; },        map: () => `${pageTitle("지도 검색", "내 주변 모임을 지도와 결과 목록으로 훑어보는 화면입니다.")}<div class="map-layout"><section class="mock-map page-card"><div class="map-pin p1"><i data-lucide="footprints"></i></div><div class="map-pin p2"><i data-lucide="bike"></i></div><div class="map-pin p3"><i data-lucide="mountain"></i></div><div class="map-center"></div></section><aside class="page-card"><div class="section-head"><h2>검색 결과</h2><span>${meetings.length}개</span></div>${meetings.map((m)=>`<a href="${detailHash(m)}" class="map-result"><img src="${m.img}" alt=""><span><b>${m.title}</b><small>${m.place} · ${m.member}</small></span></a>`).join("")}</aside></div>`,
         mymeetings: () => `${pageTitle("내 일정", "참여 예정인 모임과 내가 방장인 모임을 캘린더로 확인합니다.")}<div class="schedule-layout"><section class="page-card calendar-card"><div class="calendar-head"><button><i data-lucide="chevron-left"></i></button><div><p>2025년 5월</p><h2>이번 달 운동 일정</h2></div><button><i data-lucide="chevron-right"></i></button></div><div class="calendar-week"><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span></div><div class="calendar-grid">${Array.from({ length: 35 }, (_, idx) => { const day = idx - 2; const items = day > 0 && day <= 31 ? meetingsOnDay(day) : []; const first = items[0]; return `<button type="button" ${day > 0 && day <= 31 ? `onclick="showScheduleDay(${day})"` : ''} class="calendar-day ${items.length ? 'has-event' : ''} ${items.some((m) => m.state === 'host') ? 'host-day' : ''}"><b>${day > 0 && day <= 31 ? day : ''}</b>${first ? `<small>${first.title}</small><em>${items.length > 1 ? `+${items.length - 1}개 더` : first.state === 'host' ? '방장' : first.state === 'joined' ? '참여' : '모집'}</em>` : ''}</button>`; }).join("")}</div></section><aside class="page-card schedule-list"><div class="section-head"><h2>다가오는 일정</h2><span>${meetings.filter((m) => joinedStates.has(m.state)).length}개</span></div>${meetings.filter((m) => joinedStates.has(m.state)).map((m) => `<article class="schedule-item"><img src="${m.img}" alt="${m.title}"><div><span class="schedule-date">${m.time}</span><h3>${m.title}</h3><p>${m.place} · ${m.member}</p><div>${m.state === 'host' ? '<span class="host-badge"><i data-lucide="crown"></i>내가 방장</span>' : '<span class="member-badge">참여중</span>'}</div><footer><a class="ghost-btn" href="${detailHash(m)}"><i data-lucide="file-text"></i>상세</a><a class="ghost-btn" href="#chat-${m.id}"><i data-lucide="message-circle"></i>톡방</a>${m.state === 'host' ? '<a class="primary-small" href="#host"><i data-lucide="layout-dashboard"></i>관리</a>' : ''}</footer></div></article>`).join("")}</aside></div><div id="schedule-modal" class="schedule-modal" aria-hidden="true"><div class="schedule-modal-panel"><button class="schedule-modal-close" type="button" onclick="closeScheduleModal()"><i data-lucide="x"></i></button><h2 class="schedule-modal-title">일정</h2><div class="schedule-modal-body"></div></div></div>`,        profile: () => `${pageTitle("개인 프로필", "참여 모임, 통계, 평점 흐름을 보는 화면입니다.")}<div class="profile-grid"><section class="profile-card"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80" alt=""><h2>김강한</h2><p>러닝 · 농구 · 등산을 좋아해요</p><div><b>4.8</b><span>평점</span><b>92%</b><span>참여율</span><b>12회</b><span>참여 모임</span></div></section><section class="page-card"><div class="section-head"><h2>내 일정</h2><a href="#mymeetings">전체 보기</a></div><div class="profile-host-panel"><div><span><i data-lucide="crown"></i>내가 방장</span><h3>${meetings[0].title}</h3><p>${meetings[0].place} · ${meetings[0].time} · ${meetings[0].member}</p></div><a class="primary-small" href="#host"><i data-lucide="layout-dashboard"></i>관리</a></div>${meetings.filter((m) => m.state === 'joined').map((m)=>`<a class="meeting-row" href="${detailHash(m)}"><span class="meeting-thumb" style="background-image:url('${m.img}')"></span><span class="min-w-0 flex-1"><b>${m.title}</b><small>${m.time}</small></span><strong>${m.member}</strong></a>`).join("")}</section><section class="page-card stat-card"><h2>내 통계</h2><div class="donut">92%</div><p>참여 92% · 불참 8%</p><h3>평점 히스토리</h3><div class="bars"><span style="width:70%"></span><span style="width:20%"></span><span style="width:8%"></span><span style="width:2%"></span></div></section></div>`,
@@ -171,8 +311,23 @@
         participants: () => `${pageTitle("참가자 관리", "신청자 승인/거절 후 채팅방으로 초대하는 흐름입니다.")}<div class="page-card"><div class="filter-bar"><button class="tab-on">전체 (12)</button><button>승인 대기 (3)</button><button>참여자 (9)</button><input placeholder="이름 검색"></div><table class="flow-table"><thead><tr><th>참가자</th><th>상태</th><th>신청 시간</th><th>참여 여부</th><th>관리</th></tr></thead><tbody>${["이재민","박민수","최다연","정도윤","김초롱","이윤호"].map((n,i)=>`<tr><td>${n}<small>러닝 · 20대</small></td><td><span class="status ${i<3?'ok':'wait'}">${i<3?'승인':'대기'}</span></td><td>05.20 18:${30-i*5}</td><td>${i<3?'참여 예정':'-'}</td><td><button>메시지</button><button>${i<3?'내보내기':'승인'}</button></td></tr>`).join("")}</tbody></table></div>`,
         votes: () => `${pageTitle("투표 관리", "방장이 투표를 만들고 결과를 확인하는 화면입니다.")}<div class="page-card"><div class="section-head"><h2>진행 중인 투표</h2><button class="primary-small">+ 새 투표 생성</button></div><table class="flow-table"><thead><tr><th>투표 제목</th><th>유형</th><th>생성일</th><th>참여율</th><th>상태</th><th>관리</th></tr></thead><tbody>${[["다음 러닝 코스 선택","단일 선택","75% (9/12)","진행중"],["러닝 후 식사 장소","단일 선택","58% (7/12)","진행중"],["집결 시간 선택","단일 선택","100% (12/12)","종료"],["이달의 MVP 투표","단일 선택","100% (12/12)","종료"]].map((r,i)=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>05.${20-i}</td><td>${r[2]}</td><td><span class="status ${r[3]==='진행중'?'wait':'ok'}">${r[3]}</span></td><td><button>결과 보기</button></td></tr>`).join("")}</tbody></table></div>`
       };
+
+      pages.home = () => `
+          <section class="home-shell page-card">
+            <div class="home-top-icons"><i data-lucide="bell"></i><i data-lucide="message-circle"></i><i data-lucide="settings"></i></div>
+            <div class="home-main-copy"><p>오늘도 함께,</p><h1>스포츠로 연결되는 하루</h1></div>
+            <div class="home-match-panel home-match-panel-wide"><div class="home-choice-group home-choice-wide"><div class="home-choice-title"><strong>운동종목</strong><div class="selected-summary" data-selected-summary="sport"><em>선택 없음</em></div><button type="button" aria-expanded="true" onclick="toggleHomeSection(this)"><i data-lucide="chevron-up"></i></button></div><div class="home-choice-content">${sportGroups.map((group) => `<section class="home-choice-row"><b>${group.group}</b><div>${group.items.map((sport) => `<label class="choice-pill"><input type="checkbox" name="home-sport" value="${sport}" onchange="updateHomeSearchButton()"><span>${sport}</span></label>`).join("")}</div></section>`).join("")}</div></div><div class="home-choice-group home-choice-wide home-region-book region-mega"><div class="home-choice-title"><strong>지역</strong><div class="selected-summary" data-selected-summary="region"><em>선택 없음</em></div><button type="button" aria-expanded="true" onclick="toggleHomeSection(this)"><i data-lucide="chevron-up"></i></button></div><div class="home-choice-content"><div class="region-mega-grid"><aside>${regionGroups.map((group, index) => `<button type="button" class="home-region-tab ${index === 0 ? "is-active" : ""}" data-region-group="${group.group}" onclick="selectHomeRegionGroup(\`${group.group}\`)">${group.group}</button>`).join("")}</aside><div class="home-region-panels">${regionGroups.map((group, index) => `<section class="home-region-panel ${index === 0 ? "is-active" : ""}" data-region-group="${group.group}">${group.items.map((region) => `<label class="region-check"><input type="checkbox" name="home-region" value="${region}" onchange="updateHomeSearchButton()"><span>${region}</span></label>`).join("")}</section>`).join("")}</div></div></div></div></div><div class="home-search-wrap"><a id="home-match-button" class="home-match-button compact" href="#board">전체검색</a></div>
+            <div class="home-visual"><div class="home-hills"></div><div class="home-runner runner-one"><span></span></div><div class="home-runner runner-two"><span></span></div></div>
+            <div class="home-categories">${[["circle-dot","농구","농구"],["goal","축구","축구"],["footprints","러닝","러닝"],["dumbbell","헬스","헬스"],["mountain","등산","등산"],["bike","자전거","자전거"]].map(([icon,label,sport]) => `<a href="#board${sport ? `?sport=${encodeURIComponent(sport)}` : ""}"><i data-lucide="${icon}"></i><span>${label}</span></a>`).join("")}</div>
+          </section>
+          <section class="home-recommend"><div class="section-head"><h2>추천 모임</h2><a href="#board">전체 보기</a></div><div class="home-card-grid">${meetings.slice(0, 4).map(meetingCard).join("")}</div></section>`;
+
+      pages.board = () => { const { params } = routeParams(); const items = filteredMeetings("board"); const selectedSport = params.get("sport") || ""; const selectedSports = (params.get("sports") || "").split(",").filter(Boolean); const selectedGroup = params.get("group") || sportGroupFor(selectedSport || selectedSports[0]); const selectedRegion = params.get("region") || ""; const selectedRegionGroup = params.get("regionGroup") || regionGroupFor(selectedRegion); const selectedStatus = params.get("status") || ""; const q = params.get("q") || ""; return `${pageTitle("모임 게시판", "검색과 필터로 원하는 운동 메이트 모집글을 찾습니다.")}<div class="page-card board-control-card"><div class="board-search-row"><label><i data-lucide="search"></i><input id="board-search" value="${q}" placeholder="제목, 장소, 종목, 태그 검색" onkeydown="if(event.key === 'Enter') applyBoardSearch()"></label><button type="button" onclick="applyBoardSearch()">검색</button></div><div class="filter-bar board-filter"><button onclick="location.hash='#board'" class="${!selectedGroup && !selectedSport && !selectedRegionGroup && !selectedRegion && !selectedStatus ? 'tab-on' : ''}">전체</button><button onclick="setBoardParam('status','open')" class="${selectedStatus === 'open' ? 'tab-on' : ''}">모집중</button><select onchange="setBoardGroup(this.value)">${sportGroupOptions(selectedGroup)}</select><select onchange="setBoardParam('sport', this.value)" ${selectedGroup ? '' : 'disabled'}>${sportSubOptions(selectedGroup, selectedSport || selectedSports[0])}</select><select onchange="setBoardRegionGroup(this.value)">${regionGroupOptions(selectedRegionGroup)}</select><select onchange="setBoardParam('region', this.value)" ${selectedRegionGroup ? '' : 'disabled'}>${regionSubOptions(selectedRegionGroup, selectedRegion)}</select><select onchange="setBoardParam('status', this.value)"><option value="">전체 상태</option><option value="host" ${selectedStatus === 'host' ? 'selected' : ''}>내가 방장</option><option value="open" ${selectedStatus === 'open' ? 'selected' : ''}>모집중</option></select><select><option>최신순</option><option>평점 높은순</option><option>참여 많은순</option></select></div></div><div class="page-card"><div class="section-head"><h2>검색 결과</h2><span>${items.length}개</span></div><div class="board-table"><div class="board-head"><span>모임 정보</span><span>상태</span><span>종목</span><span>지역</span><span>일시</span><span>참여</span><span>평점</span></div>${boardRows(items)}</div></div>`; };
+      pages.map = () => { const { params } = routeParams(); const items = filteredMeetings("map"); const selectedSport = params.get("sport") || ""; const q = params.get("q") || ""; const place = params.get("place") || ""; return `${pageTitle("지도 검색", "현재 위치 또는 지정한 위치 주변의 모임을 검색합니다.")}<div class="page-card map-control-card"><div class="location-mode"><button class="tab-on"><i data-lucide="crosshair"></i>현재 위치 기준</button><label><i data-lucide="map-pin"></i><input id="map-place" value="${place}" placeholder="원하는 위치 입력 예: 잠실, 마포" onkeydown="if(event.key === 'Enter') applyMapPlace()"></label><button type="button" onclick="applyMapPlace()">위치 적용</button></div><div class="board-search-row map-search-row"><label><i data-lucide="search"></i><input id="map-search" value="${q}" placeholder="장소, 종목, 모임명 검색" onkeydown="if(event.key === 'Enter') applyMapSearch()"></label><select onchange="setMapParam('sport', this.value)">${sportOptions(selectedSport)}</select><button type="button" onclick="applyMapSearch()">검색</button></div></div><div class="map-layout"><section class="mock-map page-card"><div class="map-current-label"><i data-lucide="navigation"></i>${place || '내 현재 위치'} 기준</div><div class="map-pin p1"><i data-lucide="footprints"></i></div><div class="map-pin p2"><i data-lucide="bike"></i></div><div class="map-pin p3"><i data-lucide="mountain"></i></div><div class="map-center"></div></section><aside class="page-card"><div class="section-head"><h2>검색 결과</h2><span>${items.length}개</span></div>${items.length ? items.map((m)=>`<a href="${detailHash(m)}" class="map-result"><img src="${m.img}" alt=""><span><b>${m.title}</b><small>${m.place} · ${m.sport} · ${m.member}</small></span></a>`).join("") : `<div class="empty-result compact"><i data-lucide="map-x"></i><b>주변 모임이 없습니다.</b></div>`}</aside></div>`; };
+
+      pages.profile = () => `${pageTitle("내 정보", "프로필을 수정하고 운동 성향과 활동 기록을 관리합니다.")}<div class="profile-gold-shell"><section class="profile-card profile-gold-card"><button class="profile-edit-btn"><i data-lucide="pencil"></i>프로필 수정</button><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80" alt=""><h2>김강한</h2><p>러닝 · 농구 · 등산을 좋아해요</p><div><b>4.8</b><span>평점</span><b>92%</b><span>참여율</span><b>12회</b><span>참여 모임</span></div></section><section class="page-card profile-edit-card"><div class="section-head"><h2>프로필 편집</h2><span>인디고 + 골드 테마</span></div><div class="profile-form"><label>닉네임<input value="김강한"></label><label>선호 지역<input value="여의도, 잠실, 관악"></label><label>선호 종목<select><option>러닝</option><option>농구</option><option>등산</option><option>배드민턴</option></select></label><label>자기소개<textarea>퇴근 후 가볍게 운동하는 모임을 좋아합니다.</textarea></label></div><div class="profile-chip-list"><span>평일 저녁</span><span>초보 환영</span><span>한강 러닝</span><span>친선 경기</span></div><button class="gold-action" type="button"><i data-lucide="save"></i>수정 내용 저장</button></section><section class="page-card profile-preference-card"><h2>운동 성향</h2><div class="preference-list"><p><b>운동 강도</b><span>가볍게 오래</span></p><p><b>모임 목적</b><span>운동 메이트 / 친목</span></p><p><b>응답 속도</b><span>평균 12분</span></p><p><b>관심 종목</b><span>러닝, 농구, 등산, 자전거</span></p></div></section><section class="page-card"><div class="section-head"><h2>내 일정</h2><a href="#mymeetings">전체 보기</a></div><div class="profile-host-panel"><div><span><i data-lucide="crown"></i>내가 방장</span><h3>${meetings[0].title}</h3><p>${meetings[0].place} · ${meetings[0].time} · ${meetings[0].member}</p></div><a class="primary-small" href="#host"><i data-lucide="layout-dashboard"></i>관리</a></div>${meetings.filter((m) => m.state === 'joined').map((m)=>`<a class="meeting-row" href="${detailHash(m)}"><span class="meeting-thumb" style="background-image:url('${m.img}')"></span><span class="min-w-0 flex-1"><b>${m.title}</b><small>${m.time}</small></span><strong>${m.member}</strong></a>`).join("")}</section><section class="page-card stat-card profile-gold-stat"><h2>내 통계</h2><div class="donut">92%</div><p>참여 92% · 불참 8%</p><h3>평점 히스토리</h3><div class="bars"><span style="width:70%"></span><span style="width:20%"></span><span style="width:8%"></span><span style="width:2%"></span></div></section></div>`;
       function appleWatermark() {
-        return `<div class="talk-empty-apple"><svg viewBox="0 0 180 190" aria-hidden="true"><defs><radialGradient id="emptyAppleGlow" cx="34%" cy="28%" r="74%"><stop offset="0%" stop-color="#ffb4b4" /><stop offset="42%" stop-color="#f43f5e" /><stop offset="100%" stop-color="#991b1b" /></radialGradient><linearGradient id="emptyLeafGlow" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#bbf7d0" /><stop offset="100%" stop-color="#15803d" /></linearGradient></defs><path fill="url(#emptyAppleGlow)" d="M91 58c16-22 49-20 64 1 18 25 7 83-22 109-15 14-31 11-43 3-12 8-30 11-45-3C16 141 6 84 24 59c15-21 48-23 64-1 1 1 2 1 3 0Z" /><path fill="#713f12" d="M93 52c-5-23 2-40 19-50 7 21-1 39-19 50Z" /><path fill="url(#emptyLeafGlow)" d="M110 37c17-24 45-27 61-16-8 25-38 34-61 16Z" /></svg><p>톡방을 더블클릭하면 대화가 열립니다.</p></div>`;
+        return `<div class="talk-empty-apple"><img src="/img/test3.png" alt="Sportsmate 사과 로고"><p>톡방을 더블클릭하면 대화가 열립니다.</p></div>`;
       }
 
       function talkEmptyPanel() {
@@ -222,7 +377,8 @@
       }
 
       function render() {
-        const route = (location.hash || "#home").replace("#", "");
+        const rawRoute = (location.hash || "#home").replace("#", "");
+        const route = rawRoute.split("?")[0];
         const activeRoute = route.startsWith("detail-") ? "board" : route.startsWith("chat-") ? "chat" : route;
         view.innerHTML = route.startsWith("detail-") ? detailPage(getMeetingFromRoute(route)) : route.startsWith("chat-") ? pages.chat(route.split("-")[1]) : (pages[route] || pages.home)();
         document.querySelectorAll("[data-route]").forEach((el) => el.classList.toggle(el.closest("#mobile-nav") ? "mobile-active" : "nav-active", el.dataset.route === activeRoute));
