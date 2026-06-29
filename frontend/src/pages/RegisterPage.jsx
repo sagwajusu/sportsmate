@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Button from "../components/common/Button.jsx";
 import DesktopAuthPage from "../components/auth/desktop/DesktopAuthPage.jsx";
 import MobileHeader from "../components/layout/mobile/MobileHeader.jsx";
+import SocialLoginButtons from "../components/auth/SocialLoginButtons.jsx";
 import { authApi } from "../api/authApi";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useResponsive } from "../hooks/useResponsive";
@@ -234,14 +235,13 @@ function RegisterPage() {
         <label>닉네임<input required value={form.nickname} onChange={(event) => setForm({ ...form, nickname: event.target.value })} /></label>
         <label>이메일<input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
         <label>비밀번호<input required type="password" minLength="8" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
+
         <Button type="submit" disabled={loading}>{loading ? "처리 중..." : "가입하기"}</Button>
         <Link to="/login">이미 계정이 있어요</Link>
+
       </form>
     </>
   );
 }
 
 export default RegisterPage;
-
-
-

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import Button from "../components/common/Button.jsx";
 import DesktopAuthPage from "../components/auth/desktop/DesktopAuthPage.jsx";
 import MobileHeader from "../components/layout/mobile/MobileHeader.jsx";
+import SocialLoginButtons from "../components/auth/SocialLoginButtons.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useResponsive } from "../hooks/useResponsive";
 
@@ -72,6 +73,7 @@ function LoginPage() {
           비밀번호
           <input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
         </label>
+
         <Button type="submit" disabled={loading}>{loading ? "처리 중..." : "로그인"}</Button>
         <Link to="/register">계정 만들기</Link>
       </form>

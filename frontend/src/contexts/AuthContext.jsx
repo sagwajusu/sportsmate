@@ -126,6 +126,7 @@ export function AuthProvider({ children }) {
         }
         return data;
       },
+
       async requestSignupEmailVerification(email) {
         const { data, error } = await supabase.auth.signInWithOtp({
           email,

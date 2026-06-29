@@ -87,6 +87,14 @@ def login():
         return jsonify({"message": str(error)}), 401
 
 
+@auth_bp.post("/social-login")
+def social_login():
+    try:
+        return jsonify(login_with_supabase(request.get_json() or {}))
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 401
+
+
 @auth_bp.post("/logout")
 def logout():
     return jsonify({"message": "로그아웃되었습니다."})
