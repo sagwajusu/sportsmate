@@ -5,6 +5,7 @@ import Button from "../components/common/Button.jsx";
 import DesktopProfileEdit from "../components/profile/desktop/DesktopProfileEdit.jsx";
 import MobileHeader from "../components/layout/mobile/MobileHeader.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useResponsive } from "../hooks/useResponsive";
 import { userApi } from "../api/userApi";
 import { sportApi } from "../api/sportApi";
 import { locationApi } from "../api/locationApi";
@@ -321,7 +322,7 @@ function MobileProfileEditPage() {
               </label>
               <label>
                 <span>{T.nickname}</span>
-                <input value={form.nickname} onChange={(event) => updateField("nickname", event.target.value)} placeholder={T.nicknamePlaceholder} required />
+                <input maxLength={12} value={form.nickname} onChange={(event) => updateField("nickname", event.target.value.slice(0, 12))} placeholder={T.nicknamePlaceholder} required />
               </label>
               <label>
                 <span>{T.phone}</span>

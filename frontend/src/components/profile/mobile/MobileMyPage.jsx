@@ -32,7 +32,6 @@ function MobileMyPage() {
         <Link to="/mypage/meetings">참여 중인 모임</Link>
         <Link to="/meetings">관심 모임</Link>
         <Link to="/mypage/reviews">내 후기</Link>
-        <Link to="/host">방장 관리</Link>
       </div>
       {user ? (
         <Button variant="secondary" onClick={logout}>로그아웃</Button>
