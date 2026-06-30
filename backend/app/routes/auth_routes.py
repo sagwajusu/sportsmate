@@ -40,6 +40,10 @@ def availability():
     if not value:
         return jsonify({"available": True, "message": ""})
 
+    # 닉네임은 user_tag로 식별하므로 중복을 허용합니다.
+    if field == "nickname":
+        return jsonify({"available": True, "message": "사용 가능한 닉네임입니다."})
+
     if field == "email":
         value = value.lower()
     if field == "phone_number":

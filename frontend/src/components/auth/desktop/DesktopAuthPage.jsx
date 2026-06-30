@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   ArrowRight,
   CheckCircle2,
@@ -44,6 +44,7 @@ function DesktopAuthPage({
   availability = {},
   onChange,
   onSubmit,
+  onCheckPhoneNumber,
   onCheckNickname,
   onEmailVerification,
   emailVerified = false,
@@ -75,7 +76,7 @@ function DesktopAuthPage({
             <p>이제 선호 종목, 운동 강도, 활동 지역을 설정하면 나에게 맞는 모임을 추천받을 수 있습니다.</p>
           </div>
           <div className="desktop-auth-complete__actions">
-            <Link className="desktop-auth-primary-link" to="/mypage/profile">
+            <Link className="desktop-auth-primary-link" to="/profile/intro">
               <Sparkles size={18} /> 맞춤 정보 추천받기
             </Link>
             <Link className="desktop-auth-secondary-link" to="/">
@@ -114,7 +115,7 @@ function DesktopAuthPage({
 
               <label>
                 핸드폰 번호
-                <span>
+                <span className="desktop-auth-inline-action">
                   <Phone size={18} />
                   <input
                     type="tel"
@@ -124,6 +125,7 @@ function DesktopAuthPage({
                     onChange={(event) => onChange({ ...form, phone_number: event.target.value })}
                     placeholder="선택 입력"
                   />
+                  <button type="button" onClick={onCheckPhoneNumber}>중복확인</button>
                 </span>
                 <AvailabilityMessage state={availability.phone_number} />
               </label>

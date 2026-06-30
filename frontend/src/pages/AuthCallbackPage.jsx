@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import MobileHeader from "../components/layout/mobile/MobileHeader.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
 function AuthCallbackPage() {
   const navigate = useNavigate();
-  const { loading, isAuthenticated } = useAuth();
   const [message, setMessage] = useState("로그인 정보를 확인하고 있습니다.");
+  const { loading, isAuthenticated, authError } = useAuth();
 
   useEffect(() => {
     if (loading) return;
@@ -22,6 +22,12 @@ function AuthCallbackPage() {
     sessionStorage.setItem("sportsmate_flash", "로그인하셨습니다.");
     navigate(redirectPath, { replace: true });
   }, [loading, isAuthenticated, navigate]);
+  
+      if (authError) {
+      sessionStorage.setItem("sportsmate_auth_error", authError);
+    }
+    navigate("/login", { replace: true });
+  }, [loading, isAuthenticated, authError, navigate]);
 
   return (
     <>
@@ -32,6 +38,7 @@ function AuthCallbackPage() {
       </section>
     </>
   );
+
 }
 
 export default AuthCallbackPage;

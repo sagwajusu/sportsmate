@@ -33,11 +33,12 @@ function metadataFromSupabaseUser(user, fallback = {}) {
   const email = user?.email || metadata.email || fallback.email || `${providerId}@${provider}.sportsmate.local`;
   const emailName = email.split("@")[0];
   const displayName = fallback.name || metadata.name || metadata.full_name || metadata.nickname || metadata.preferred_username || emailName;
+  const defaultNickname = fallback.nickname || metadata.nickname || metadata.name || metadata.full_name || metadata.preferred_username || emailName;
   return {
     auth_user_id: user?.id,
     email,
     name: displayName,
-    nickname: fallback.nickname || metadata.nickname || metadata.name || metadata.full_name || metadata.preferred_username || emailName,
+    nickname: defaultNickname,
     phone_number: fallback.phone_number || metadata.phone_number || user?.phone || "",
     provider,
     provider_id: providerId,
@@ -50,18 +51,23 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
 
   const syncProfile = async (supabaseUser, fallback = {}) => {
     if (!supabaseUser) return null;
+    setAuthError("");
     const data = await authApi.sync(metadataFromSupabaseUser(supabaseUser, fallback));
     if (data.access_token) {
       localStorage.setItem("sportsmate_token", data.access_token);
     }
-    const currentRedirect = localStorage.getItem("sportsmate_post_auth_redirect");
-    if (data.profile_complete === false || data.is_new_user) {
-      localStorage.setItem("sportsmate_post_auth_redirect", "/mypage/profile");
-    } else if (!currentRedirect || currentRedirect === "/mypage/profile") {
-      localStorage.setItem("sportsmate_post_auth_redirect", "/");
+    if (typeof data.is_new_user === "boolean") {
+      const currentRedirect = localStorage.getItem("sportsmate_post_auth_redirect");
+      const needsProfile = data.is_new_user || data.profile_complete === false;
+      if (needsProfile) {
+        localStorage.setItem("sportsmate_post_auth_redirect", "/profile/intro");
+      } else if (currentRedirect !== "/profile/intro" && currentRedirect !== "/profile/setup") {
+        localStorage.setItem("sportsmate_post_auth_redirect", "/");
+      }
     }
     setUser(data.user);
     return data;
@@ -87,7 +93,8 @@ export function AuthProvider({ children }) {
       if (currentSession?.user) {
         try {
           await syncProfile(currentSession.user, { allow_nickname_suffix: true });
-        } catch {
+        } catch (error) {
+          setAuthError(error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.");
           setUser(null);
         }
       }
@@ -100,10 +107,12 @@ export function AuthProvider({ children }) {
       if (nextSession?.user) {
         try {
           await syncProfile(nextSession.user, { allow_nickname_suffix: true });
-        } catch {
+        } catch (error) {
+          setAuthError(error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.");
           setUser(null);
         }
       } else {
+        setAuthError("");
         setUser(null);
       }
       setLoading(false);
@@ -119,8 +128,9 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       session,
+      authError,
       loading,
-      isAuthenticated: Boolean(session?.user),
+      isAuthenticated: Boolean(user),
       async login(payload) {
         localStorage.removeItem("sportsmate_post_auth_redirect");
         const client = requireSupabase();
@@ -217,6 +227,7 @@ export function AuthProvider({ children }) {
           await supabase.auth.signOut();
         }
         localStorage.removeItem("sportsmate_token");
+        setAuthError("");
         setUser(null);
         setSession(null);
       },
@@ -224,7 +235,7 @@ export function AuthProvider({ children }) {
         setUser(nextUser);
       }
     }),
-    [user, session, loading]
+    [user, session, authError, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
