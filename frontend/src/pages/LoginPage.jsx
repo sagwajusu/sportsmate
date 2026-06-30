@@ -18,6 +18,14 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const authError = sessionStorage.getItem("sportsmate_auth_error");
+    if (authError) {
+      setError(authError);
+      sessionStorage.removeItem("sportsmate_auth_error");
+    }
+  }, []);
+
+  useEffect(() => {
     if (!authLoading && isAuthenticated) {
       navigate(location.state?.from || "/");
     }
@@ -74,7 +82,10 @@ function LoginPage() {
           <input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
         </label>
 
+        {error ? <p className="mobile-auth-message mobile-auth-message--error">{error}</p> : null}
+        {notice ? <p className="mobile-auth-message mobile-auth-message--notice">{notice}</p> : null}
         <Button type="submit" disabled={loading}>{loading ? "처리 중..." : "로그인"}</Button>
+        <SocialLoginButtons />
         <Link to="/register">계정 만들기</Link>
       </form>
     </>
@@ -82,5 +93,4 @@ function LoginPage() {
 }
 
 export default LoginPage;
-
 

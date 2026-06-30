@@ -41,6 +41,12 @@ function parseRegions(regionName) {
   return regionName.split(",").map((region) => region.trim()).filter(Boolean);
 }
 
+function tagLabel(user) {
+  const rawTag = user?.user_tag || user?.user_tag_display || user?.nickname_with_tag?.match(/\[([^\]]+)\]/)?.[1] || "";
+  const normalized = String(rawTag).replace(/^#/, "").replace(/^\[/, "").replace(/\]$/, "").trim();
+  return normalized ? `[${normalized}]` : "";
+}
+
 const mockRegionResults = [
   "서울특별시 송파구 잠실동",
   "서울특별시 영등포구 여의도동",
@@ -121,6 +127,7 @@ function DesktopProfileEdit() {
     : defaultSportCategories;
   const activeSportGroup = sportCategoryGroups.find((group) => group.id === activeCategoryId) || sportCategoryGroups[0];
   const pendingRegion = regionQuery || form.selected_regions[0] || "전국";
+  const displayTag = tagLabel(user);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 

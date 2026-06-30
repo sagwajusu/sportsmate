@@ -1,8 +1,9 @@
 import { Send, UsersRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 import LoadingCards from "../../common/LoadingCards.jsx";
+import EmptyState from "../../common/EmptyState.jsx";
 import { chatApi } from "../../../api/chatApi";
 import { useAsync } from "../../../hooks/useAsync";
 import { useAuth } from "../../../contexts/AuthContext.jsx";
@@ -16,17 +17,32 @@ function MobileChatRoom() {
   const { chatRoomId } = useParams();
   const { user } = useAuth();
   const [content, setContent] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const bottomRef = useRef(null);
   const messages = useAsync(() => chatApi.messages(chatRoomId), [chatRoomId, refreshKey]);
   const room = messages.data?.room;
   const meeting = room?.meeting;
 
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.data?.items?.length]);
+
   const send = async (event) => {
     event.preventDefault();
     if (!content.trim()) return;
-    await chatApi.send(chatRoomId, { content: content.trim() });
-    setContent("");
-    setRefreshKey((value) => value + 1);
+    setError("");
+    setSending(true);
+    try {
+      await chatApi.send(chatRoomId, { content: content.trim() });
+      setContent("");
+      setRefreshKey((value) => value + 1);
+    } catch (sendError) {
+      setError(sendError.response?.data?.message || "메시지 전송에 실패했습니다.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -34,6 +50,8 @@ function MobileChatRoom() {
       <MobileHeader title={meeting?.title || "채팅방"} />
       {messages.loading ? (
         <LoadingCards count={3} />
+      ) : messages.error ? (
+        <EmptyState title="채팅방을 불러오지 못했습니다." description="참여 승인 상태를 확인하거나 잠시 후 다시 시도해주세요." actionLabel="채팅 목록" actionTo="/chats" />
       ) : (
         <>
           <section className="chat-room-summary">
@@ -48,29 +66,38 @@ function MobileChatRoom() {
           </section>
           <div className="message-list">
             <div className="message-day-divider">오늘</div>
-            {(messages.data?.items || []).map((message) => {
-              const mine = message.user_id === user?.id;
-              return (
-                <div key={message.id} className={`message-row ${mine ? "mine" : ""}`}>
-                  {!mine && (
-                    <div className="message-avatar">
-                      {message.sender?.profile_image_url ? <img src={message.sender.profile_image_url} alt="" /> : <UsersRound size={16} />}
+            {(messages.data?.items || []).length ? (
+              (messages.data?.items || []).map((message) => {
+                const mine = message.user_id === user?.id;
+                return (
+                  <div key={message.id} className={`message-row ${mine ? "mine" : ""}`}>
+                    {!mine && (
+                      <div className="message-avatar">
+                        {message.sender?.profile_image_url ? <img src={message.sender.profile_image_url} alt="" /> : <UsersRound size={16} />}
+                      </div>
+                    )}
+                    <div className={`message-bubble ${mine ? "mine" : ""}`}>
+                      {!mine && <span>{message.sender?.nickname || "참여자"}</span>}
+                      <p>{message.content}</p>
+                      <time>{formatMessageTime(message.created_at)}</time>
                     </div>
-                  )}
-                  <div className={`message-bubble ${mine ? "mine" : ""}`}>
-                    {!mine && <span>{message.sender?.nickname}</span>}
-                    <p>{message.content}</p>
-                    <time>{formatMessageTime(message.created_at)}</time>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="message-empty">
+                <strong>아직 대화가 없습니다.</strong>
+                <p>오늘 모임 준비 이야기를 먼저 시작해보세요.</p>
+              </div>
+            )}
+            <div ref={bottomRef} />
           </div>
         </>
       )}
       <form className="chat-input" onSubmit={send}>
+        {error ? <p className="chat-input__error">{error}</p> : null}
         <input value={content} onChange={(event) => setContent(event.target.value)} placeholder="메시지를 입력하세요" />
-        <button type="submit" aria-label="메시지 전송">
+        <button type="submit" aria-label="메시지 전송" disabled={sending || !content.trim()}>
           <Send size={20} />
         </button>
       </form>

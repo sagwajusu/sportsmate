@@ -84,3 +84,4 @@ backend/
 - 모바일 입력창 포커스 시 iOS 자동 확대가 발생하지 않도록 모바일 폼 컨트롤 글자 크기를 보정했습니다.
 - Vite 개발 서버가 `frontend/.env`의 `VITE_API_PROXY_TARGET`을 읽도록 프록시 설정을 정리했습니다.
 - 백엔드 Python 파일에 포함된 BOM 문자를 제거해 Flask import 오류를 방지했습니다.
+- develop 병합 후 소셜 로그인 콜백 페이지의 빌드 오류를 수정하고 프론트엔드 빌드 및 Flask 라우트 검증을 완료했습니다.

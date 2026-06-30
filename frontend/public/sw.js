@@ -18,11 +18,18 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
+  const request = event.request;
+  const isNavigation = request.mode === "navigate";
+
   event.respondWith(
-    caches.match(event.request).then((cached) => {
+    caches.match(request).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).catch(() => caches.match("/"));
+      return fetch(request).catch(() => {
+        if (isNavigation) {
+          return caches.match("/");
+        }
+        throw new Error("Network request failed.");
+      });
     })
   );
 });
-

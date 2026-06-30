@@ -1,8 +1,26 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { authApi } from "../api/authApi";
-import { supabase } from "../api/supabaseClient";
+import { isSupabaseConfigured, supabase } from "../api/supabaseClient";
 
 const AuthContext = createContext(null);
+
+const SUPABASE_CONFIG_ERROR = "Supabase 환경변수가 설정되지 않아 인증 기능을 사용할 수 없습니다.";
+const SUPABASE_AUTH_PROVIDERS = ["google", "kakao"];
+
+function requireSupabase() {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error(SUPABASE_CONFIG_ERROR);
+  }
+  return supabase;
+}
+
+function normalizeAuthProvider(provider) {
+  const nextProvider = typeof provider === "string" ? provider : provider?.id;
+  if (!SUPABASE_AUTH_PROVIDERS.includes(nextProvider)) {
+    throw new Error("지원하지 않는 소셜 로그인 제공자입니다.");
+  }
+  return nextProvider;
+}
 
 function getAuthRedirectUrl(path = "/auth/callback") {
   return `${window.location.origin}${path}`;
@@ -15,11 +33,12 @@ function metadataFromSupabaseUser(user, fallback = {}) {
   const email = user?.email || metadata.email || fallback.email || `${providerId}@${provider}.sportsmate.local`;
   const emailName = email.split("@")[0];
   const displayName = fallback.name || metadata.name || metadata.full_name || metadata.nickname || metadata.preferred_username || emailName;
+  const defaultNickname = fallback.nickname || metadata.nickname || metadata.name || metadata.full_name || metadata.preferred_username || emailName;
   return {
     auth_user_id: user?.id,
     email,
     name: displayName,
-    nickname: fallback.nickname || metadata.nickname || metadata.name || metadata.full_name || metadata.preferred_username || emailName,
+    nickname: defaultNickname,
     phone_number: fallback.phone_number || metadata.phone_number || user?.phone || "",
     provider,
     provider_id: providerId,
@@ -32,18 +51,21 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
 
   const syncProfile = async (supabaseUser, fallback = {}) => {
     if (!supabaseUser) return null;
+    setAuthError("");
     const data = await authApi.sync(metadataFromSupabaseUser(supabaseUser, fallback));
     if (data.access_token) {
       localStorage.setItem("sportsmate_token", data.access_token);
     }
     if (typeof data.is_new_user === "boolean") {
       const currentRedirect = localStorage.getItem("sportsmate_post_auth_redirect");
-      if (data.is_new_user) {
-        localStorage.setItem("sportsmate_post_auth_redirect", "/mypage/profile");
-      } else if (currentRedirect !== "/mypage/profile") {
+      const needsProfile = data.is_new_user || data.profile_complete === false;
+      if (needsProfile) {
+        localStorage.setItem("sportsmate_post_auth_redirect", "/profile/intro");
+      } else if (currentRedirect !== "/profile/intro" && currentRedirect !== "/profile/setup") {
         localStorage.setItem("sportsmate_post_auth_redirect", "/");
       }
     }
@@ -54,6 +76,15 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
+    if (!isSupabaseConfigured || !supabase) {
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return;
       const currentSession = data.session;
@@ -62,7 +93,8 @@ export function AuthProvider({ children }) {
       if (currentSession?.user) {
         try {
           await syncProfile(currentSession.user, { allow_nickname_suffix: true });
-        } catch {
+        } catch (error) {
+          setAuthError(error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.");
           setUser(null);
         }
       }
@@ -75,10 +107,12 @@ export function AuthProvider({ children }) {
       if (nextSession?.user) {
         try {
           await syncProfile(nextSession.user, { allow_nickname_suffix: true });
-        } catch {
+        } catch (error) {
+          setAuthError(error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.");
           setUser(null);
         }
       } else {
+        setAuthError("");
         setUser(null);
       }
       setLoading(false);
@@ -94,11 +128,13 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       session,
+      authError,
       loading,
-      isAuthenticated: Boolean(session?.user),
+      isAuthenticated: Boolean(user),
       async login(payload) {
         localStorage.removeItem("sportsmate_post_auth_redirect");
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const client = requireSupabase();
+        const { data, error } = await client.auth.signInWithPassword({
           email: payload.email,
           password: payload.password
         });
@@ -108,7 +144,8 @@ export function AuthProvider({ children }) {
       },
       async register(payload) {
         localStorage.removeItem("sportsmate_post_auth_redirect");
-        const { data, error } = await supabase.auth.signUp({
+        const client = requireSupabase();
+        const { data, error } = await client.auth.signUp({
           email: payload.email,
           password: payload.password,
           options: {
@@ -128,7 +165,8 @@ export function AuthProvider({ children }) {
       },
 
       async requestSignupEmailVerification(email) {
-        const { data, error } = await supabase.auth.signInWithOtp({
+        const client = requireSupabase();
+        const { data, error } = await client.auth.signInWithOtp({
           email,
           options: {
             emailRedirectTo: getAuthRedirectUrl("/register"),
@@ -139,14 +177,15 @@ export function AuthProvider({ children }) {
         return data;
       },
       async registerVerifiedEmail(payload) {
-        const { data: sessionData } = await supabase.auth.getSession();
+        const client = requireSupabase();
+        const { data: sessionData } = await client.auth.getSession();
         const currentSession = sessionData.session;
         const currentUser = currentSession?.user;
         const confirmedAt = currentUser?.email_confirmed_at || currentUser?.confirmed_at;
         if (!currentUser || currentUser.email?.toLowerCase() !== payload.email.toLowerCase() || !confirmedAt) {
-          throw new Error("??? ??? ??? ???.");
+          throw new Error("이메일 인증을 완료해주세요.");
         }
-        const { data, error } = await supabase.auth.updateUser({
+        const { data, error } = await client.auth.updateUser({
           password: payload.password,
           data: {
             name: payload.name,
@@ -160,8 +199,10 @@ export function AuthProvider({ children }) {
       },
       async socialLogin(provider) {
         localStorage.removeItem("sportsmate_post_auth_redirect");
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider,
+        const client = requireSupabase();
+        const nextProvider = normalizeAuthProvider(provider);
+        const { data, error } = await client.auth.signInWithOAuth({
+          provider: nextProvider,
           options: {
             redirectTo: getAuthRedirectUrl("/auth/callback")
           }
@@ -170,7 +211,8 @@ export function AuthProvider({ children }) {
         return data;
       },
       async resendSignupEmail(email) {
-        const { data, error } = await supabase.auth.resend({
+        const client = requireSupabase();
+        const { data, error } = await client.auth.resend({
           type: "signup",
           email,
           options: {
@@ -181,8 +223,11 @@ export function AuthProvider({ children }) {
         return data;
       },
       async logout() {
-        await supabase.auth.signOut();
+        if (isSupabaseConfigured && supabase) {
+          await supabase.auth.signOut();
+        }
         localStorage.removeItem("sportsmate_token");
+        setAuthError("");
         setUser(null);
         setSession(null);
       },
@@ -190,7 +235,7 @@ export function AuthProvider({ children }) {
         setUser(nextUser);
       }
     }),
-    [user, session, loading]
+    [user, session, authError, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -199,6 +244,4 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
-
-
 

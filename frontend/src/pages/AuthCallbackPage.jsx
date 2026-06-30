@@ -1,31 +1,30 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MobileHeader from "../components/layout/mobile/MobileHeader.jsx";
-import { supabase } from "../api/supabaseClient";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
 function AuthCallbackPage() {
   const navigate = useNavigate();
-  const { socialLogin } = useAuth();
-  const [message, setMessage] = useState("소셜 로그인 정보를 확인하고 있습니다.");
+  const [message, setMessage] = useState("로그인 정보를 확인하고 있습니다.");
+  const { loading, isAuthenticated, authError } = useAuth();
 
   useEffect(() => {
-    const finishLogin = async () => {
-      try {
-        if (!supabase) throw new Error("Supabase 환경변수가 설정되지 않았습니다.");
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        const accessToken = data.session?.access_token;
-        const provider = data.session?.user?.app_metadata?.provider || "supabase";
-        if (!accessToken) throw new Error("소셜 로그인 세션을 찾지 못했습니다.");
-        await socialLogin({ access_token: accessToken, provider });
-        navigate("/", { replace: true });
-      } catch (error) {
-        setMessage(error.message || "소셜 로그인 처리에 실패했습니다.");
+    if (loading) return;
+
+    if (!isAuthenticated) {
+      setMessage("로그인 세션을 확인하지 못했습니다. 다시 로그인해주세요.");
+      if (authError) {
+        sessionStorage.setItem("sportsmate_auth_error", authError);
       }
-    };
-    finishLogin();
-  }, [navigate, socialLogin]);
+      const timer = window.setTimeout(() => navigate("/login", { replace: true }), 1200);
+      return () => window.clearTimeout(timer);
+    }
+
+    const redirectPath = localStorage.getItem("sportsmate_post_auth_redirect") || "/";
+    localStorage.removeItem("sportsmate_post_auth_redirect");
+    sessionStorage.setItem("sportsmate_flash", "로그인하셨습니다.");
+    navigate(redirectPath, { replace: true });
+  }, [loading, isAuthenticated, authError, navigate]);
 
   return (
     <>
@@ -37,19 +36,6 @@ function AuthCallbackPage() {
     </>
   );
 
-  const { loading, isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    if (loading) return;
-    const redirectPath = localStorage.getItem("sportsmate_post_auth_redirect") || "/";
-    localStorage.removeItem("sportsmate_post_auth_redirect");
-    if (isAuthenticated) {
-      sessionStorage.setItem("sportsmate_flash", "\ub85c\uadf8\uc778\ud558\uc168\uc2b5\ub2c8\ub2e4.");
-    }
-    navigate(isAuthenticated ? redirectPath : "/login", { replace: true });
-  }, [loading, isAuthenticated, navigate]);
-
-  return <div className="page-message">로그인 정보를 확인하고 있습니다.</div>;
 }
 
 export default AuthCallbackPage;
