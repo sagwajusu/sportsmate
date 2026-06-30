@@ -5,7 +5,6 @@ import Button from "../components/common/Button.jsx";
 import DesktopProfileEdit from "../components/profile/desktop/DesktopProfileEdit.jsx";
 import MobileHeader from "../components/layout/mobile/MobileHeader.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { useResponsive } from "../hooks/useResponsive";
 import { userApi } from "../api/userApi";
 import { sportApi } from "../api/sportApi";
 import { locationApi } from "../api/locationApi";
@@ -63,8 +62,7 @@ const fallbackSportGroups = [
 ];
 
 
-function MobileProfileEditPage() {
-
+// 모바일 프로필 설정 화면에서 사용하는 기본 종목 데이터입니다.
 const fallbackCategories = fallbackSportGroups.map((group) => group.category);
 const fallbackSports = fallbackSportGroups.flatMap((group) =>
   group.sports.map((name, index) => ({
@@ -94,10 +92,9 @@ function splitSports(value) {
     .filter(Boolean);
 }
 
-function ProfileEditPage() {
-
+// 모바일 전용 프로필 설정 컴포넌트입니다. PC 화면은 아래 ProfileEditPage 분기에서 DesktopProfileEdit을 사용합니다.
+function MobileProfileEditPage() {
   const navigate = useNavigate();
-  const { isMobile } = useResponsive();
   const { user, setCurrentUser } = useAuth();
   const initialSports = useMemo(() => splitSports(user?.profile?.preferred_sports), [user?.profile?.preferred_sports]);
   const initialLevels = useMemo(() => parsePreferredLevels(user?.profile?.preferred_sport_levels), [user?.profile?.preferred_sport_levels]);
@@ -475,6 +472,7 @@ function ProfileEditPage() {
   );
 }
 
+// PC와 모바일 프로필 설정 화면을 접속 기기 기준으로 분기합니다.
 function ProfileEditPage() {
   const { isMobile } = useResponsive();
   return isMobile ? <MobileProfileEditPage /> : <DesktopProfileEdit />;
