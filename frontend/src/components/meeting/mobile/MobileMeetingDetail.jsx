@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { CalendarClock, UserRound, Users } from "lucide-react";
+import { CalendarClock, Eye, UserRound, Users } from "lucide-react";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 import Badge from "../../common/Badge.jsx";
 import Button from "../../common/Button.jsx";
@@ -17,9 +17,13 @@ function MobileMeetingDetail() {
   const { meetingId } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", tone: "notice" });
   const [review, setReview] = useState({ rating: 5, content: "" });
   const [reportReason, setReportReason] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [checkingAttendance, setCheckingAttendance] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const detail = useAsync(() => meetingApi.detail(meetingId), [meetingId]);
   const reviews = useAsync(() => meetingApi.reviews(meetingId), [meetingId, refreshKey]);
@@ -30,29 +34,39 @@ function MobileMeetingDetail() {
 
   const meeting = detail.data?.meeting;
   if (!meeting) return <p className="page-message">모임 정보를 찾을 수 없습니다.</p>;
+  const isHost = user?.id === meeting.host?.id;
+  const isClosed = meeting.status !== "open";
+  const isFull = Number(meeting.current_participants || 0) >= Number(meeting.max_participants || 0);
+  const canJoin = !isHost && !isClosed && !isFull && !joining;
 
   const joinMeeting = async () => {
     if (!isAuthenticated) {
       navigate("/login", { state: { from: `/meetings/${meeting.id}` } });
       return;
     }
+    setJoining(true);
     try {
       await meetingApi.join(meeting.id, { join_message: "함께 운동하고 싶습니다." });
-      setMessage("참여 신청이 완료되었습니다.");
+      setMessage({ text: meeting.approval_required ? "참여 신청이 완료되었습니다." : "모임 참여가 완료되었습니다.", tone: "notice" });
     } catch (error) {
-      setMessage(error.response?.data?.message || "참여 신청을 처리하지 못했습니다.");
+      setMessage({ text: error.response?.data?.message || "참여 신청을 처리하지 못했습니다.", tone: "error" });
+    } finally {
+      setJoining(false);
     }
   };
 
   const submitReview = async (event) => {
     event.preventDefault();
+    setReviewing(true);
     try {
       await meetingApi.createReview(meeting.id, { rating: Number(review.rating), content: review.content });
       setReview({ rating: 5, content: "" });
       setRefreshKey((value) => value + 1);
-      setMessage("후기가 등록되었습니다.");
+      setMessage({ text: "후기가 등록되었습니다.", tone: "notice" });
     } catch (error) {
-      setMessage(error.response?.data?.message || "후기를 등록하지 못했습니다.");
+      setMessage({ text: error.response?.data?.message || "후기를 등록하지 못했습니다.", tone: "error" });
+    } finally {
+      setReviewing(false);
     }
   };
 
@@ -62,12 +76,15 @@ function MobileMeetingDetail() {
       navigate("/login", { state: { from: `/meetings/${meeting.id}` } });
       return;
     }
+    setReporting(true);
     try {
       await reportApi.create({ target_type: "meeting", target_id: meeting.id, reason: reportReason });
       setReportReason("");
-      setMessage("신고가 접수되었습니다.");
+      setMessage({ text: "신고가 접수되었습니다.", tone: "notice" });
     } catch (error) {
-      setMessage(error.response?.data?.message || "신고를 접수하지 못했습니다.");
+      setMessage({ text: error.response?.data?.message || "신고를 접수하지 못했습니다.", tone: "error" });
+    } finally {
+      setReporting(false);
     }
   };
 
@@ -79,18 +96,21 @@ function MobileMeetingDetail() {
     try {
       await voteApi.participate(voteId, { option_id: optionId });
       setRefreshKey((value) => value + 1);
-      setMessage("투표가 반영되었습니다.");
+      setMessage({ text: "투표가 반영되었습니다.", tone: "notice" });
     } catch (error) {
-      setMessage(error.response?.data?.message || "투표를 반영하지 못했습니다.");
+      setMessage({ text: error.response?.data?.message || "투표를 반영하지 못했습니다.", tone: "error" });
     }
   };
 
   const checkAttendance = async () => {
+    setCheckingAttendance(true);
     try {
       await meetingApi.checkAttendance(meeting.id);
-      setMessage("출석 체크가 완료되었습니다.");
+      setMessage({ text: "출석 체크가 완료되었습니다.", tone: "notice" });
     } catch (error) {
-      setMessage(error.response?.data?.message || "출석 체크를 처리하지 못했습니다.");
+      setMessage({ text: error.response?.data?.message || "출석 체크를 처리하지 못했습니다.", tone: "error" });
+    } finally {
+      setCheckingAttendance(false);
     }
   };
 
@@ -126,6 +146,10 @@ function MobileMeetingDetail() {
               <UserRound size={18} />
               <span>{meeting.host?.nickname || "방장"}</span>
             </div>
+            <div>
+              <Eye size={18} />
+              <span>조회 {meeting.view_count || 0}</span>
+            </div>
           </dl>
         </div>
         <StaticMapCard meeting={meeting} />
@@ -158,7 +182,7 @@ function MobileMeetingDetail() {
             ))}
             {!votes.loading && !votes.data?.items?.length && <p>진행 중인 투표가 없습니다.</p>}
           </div>
-          {isAuthenticated && <Button type="button" variant="secondary" onClick={checkAttendance}>출석 체크</Button>}
+          {isAuthenticated && <Button type="button" variant="secondary" onClick={checkAttendance} disabled={checkingAttendance}>{checkingAttendance ? "처리 중..." : "출석 체크"}</Button>}
         </section>
         <section className="detail-card">
           <h2>후기 요약</h2>
@@ -187,7 +211,7 @@ function MobileMeetingDetail() {
                 후기
                 <textarea required value={review.content} onChange={(event) => setReview({ ...review, content: event.target.value })} placeholder="모임 후기를 작성하세요" />
               </label>
-              <Button type="submit" variant="secondary">후기 등록</Button>
+              <Button type="submit" variant="secondary" disabled={reviewing}>{reviewing ? "등록 중..." : "후기 등록"}</Button>
             </form>
           )}
         </section>
@@ -198,16 +222,18 @@ function MobileMeetingDetail() {
               신고 사유
               <textarea required value={reportReason} onChange={(event) => setReportReason(event.target.value)} placeholder="신고 사유를 입력하세요" />
             </label>
-            <Button type="submit" variant="secondary">신고 접수</Button>
+            <Button type="submit" variant="secondary" disabled={reporting}>{reporting ? "접수 중..." : "신고 접수"}</Button>
           </form>
         </section>
       </article>
       <div className="sticky-cta">
-        {message && <span>{message}</span>}
-        {user?.id === meeting.host?.id ? (
+        {message.text && <span className={`sticky-cta__message sticky-cta__message--${message.tone}`}>{message.text}</span>}
+        {isHost ? (
           <Link className="button button--primary" to={`/host/meetings/${meeting.id}`}>방장 관리</Link>
         ) : (
-          <Button onClick={joinMeeting}>참여 신청</Button>
+          <Button onClick={joinMeeting} disabled={!canJoin}>
+            {joining ? "신청 중..." : isClosed ? "모집 마감" : isFull ? "정원 마감" : "참여 신청"}
+          </Button>
         )}
       </div>
     </>

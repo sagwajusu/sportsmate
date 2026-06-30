@@ -13,12 +13,16 @@ def required_env(name):
     return value
 
 
+def parse_csv_env(name):
+    return [item.strip() for item in required_env(name).split(",") if item.strip()]
+
+
 class Config:
     SQLALCHEMY_DATABASE_URI = required_env("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = required_env("JWT_SECRET_KEY")
     JSON_AS_ASCII = False
-    FRONTEND_ORIGIN = required_env("FRONTEND_ORIGIN")
+    FRONTEND_ORIGIN = parse_csv_env("FRONTEND_ORIGIN")
     VWORLD_API_KEY = os.getenv("VWORLD_API_KEY", "")
     VWORLD_DOMAIN = os.getenv("VWORLD_DOMAIN", "")
     MOLIT_API_KEY = os.getenv("MOLIT_API_KEY", "")

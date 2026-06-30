@@ -6,16 +6,25 @@ const providers = [
   { id: "kakao", label: "Kakao로 계속하기", icon: MessageCircle }
 ];
 
+function normalizeAuthProvider(provider) {
+  return typeof provider === "string" ? provider : provider?.id;
+}
+
 function SocialLoginButtons() {
   const redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL || `${window.location.origin}/auth/callback`;
 
   const startSocialLogin = async (provider) => {
+    const nextProvider = normalizeAuthProvider(provider);
     if (!supabase) {
       window.alert("Supabase 환경변수가 설정되지 않았습니다.");
       return;
     }
+    if (!nextProvider) {
+      window.alert("지원하지 않는 소셜 로그인 제공자입니다.");
+      return;
+    }
     await supabase.auth.signInWithOAuth({
-      provider,
+      provider: nextProvider,
       options: { redirectTo }
     });
   };

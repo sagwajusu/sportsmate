@@ -1,24 +1,52 @@
 import { Link } from "react-router-dom";
-import { Bike, CalendarPlus, Dumbbell, Footprints, MapPinned, Mountain, Search, Sparkles, Trophy, Waves } from "lucide-react";
+import { Activity, Bike, CalendarPlus, CircleDot, Dribbble, Dumbbell, Footprints, Goal, MapPinned, Mountain, Search, Sparkles, Trophy, Volleyball, Waves } from "lucide-react";
+import { useMemo } from "react";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 import MeetingCard from "../../meeting/shared/MeetingCard.jsx";
 import LoadingCards from "../../common/LoadingCards.jsx";
 import { meetingApi } from "../../../api/meetingApi";
 import { sportApi } from "../../../api/sportApi";
 import { useAsync } from "../../../hooks/useAsync";
+import { useAuth } from "../../../contexts/AuthContext.jsx";
+
+const sportIconRules = [
+  { pattern: /축구|풋살|족구/, icon: Goal },
+  { pattern: /농구/, icon: Dribbble },
+  { pattern: /배구/, icon: Volleyball },
+  { pattern: /야구/, icon: CircleDot },
+  { pattern: /배드민턴|탁구|테니스|스쿼시/, icon: Activity },
+  { pattern: /러닝|마라톤|산책/, icon: Footprints },
+  { pattern: /등산|트레킹/, icon: Mountain },
+  { pattern: /자전거|라이딩/, icon: Bike },
+  { pattern: /헬스|크로스핏|클라이밍|요가|필라테스|피트니스/, icon: Dumbbell },
+  { pattern: /수영|서핑/, icon: Waves },
+  { pattern: /볼링|당구|골프/, icon: Trophy }
+];
+
+function splitPreferredSports(value) {
+  return (value || "")
+    .split(",")
+    .map((sport) => sport.trim())
+    .filter(Boolean);
+}
+
+function getSportIcon(sportName) {
+  return sportIconRules.find((rule) => rule.pattern.test(sportName))?.icon || Dumbbell;
+}
 
 function MobileHome() {
+  const { user } = useAuth();
   const meetings = useAsync(() => meetingApi.list({ limit: 5 }), []);
   const categories = useAsync(() => sportApi.categories(), []);
-  const sportShortcuts = [
-    { label: "농구", icon: Trophy },
-    { label: "축구", icon: Footprints },
-    { label: "러닝", icon: Footprints },
-    { label: "헬스", icon: Dumbbell },
-    { label: "등산", icon: Mountain },
-    { label: "자전거", icon: Bike },
-    { label: "수영", icon: Waves }
-  ];
+  const preferredSports = useMemo(
+    () => splitPreferredSports(user?.profile?.preferred_sports),
+    [user?.profile?.preferred_sports]
+  );
+  const sportShortcuts = useMemo(
+    () => preferredSports.slice(0, 7).map((label) => ({ label, icon: getSportIcon(label) })),
+    [preferredSports]
+  );
+  const hasPreferredSports = sportShortcuts.length > 0;
 
   return (
     <>
@@ -43,16 +71,23 @@ function MobileHome() {
         </Link>
       </div>
 
-      <section className="home-sport-shortcuts" aria-label="인기 종목 바로가기">
-        {sportShortcuts.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link key={item.label} to={`/meetings?keyword=${encodeURIComponent(item.label)}`}>
-              <Icon size={22} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+      <section className="home-sport-shortcuts" aria-label="선호 종목 바로가기">
+        {hasPreferredSports ? (
+          sportShortcuts.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.label} to={`/meetings?keyword=${encodeURIComponent(item.label)}`}>
+                <Icon size={22} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })
+        ) : (
+          <Link className="home-sport-shortcuts__empty" to="/mypage/profile">
+            <Dumbbell size={22} />
+            <span>선호 종목 설정</span>
+          </Link>
+        )}
       </section>
 
       <section className="section">

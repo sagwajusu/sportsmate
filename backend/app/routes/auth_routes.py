@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from app.models import User
-from app.services.auth_service import login_user, register_user, sync_supabase_user
+from app.services.auth_service import login_user, login_with_supabase, register_user, sync_supabase_user
 
 auth_bp = Blueprint("auth", __name__)
 

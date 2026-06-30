@@ -51,6 +51,8 @@ function MobileMeetingCreate() {
   const [addressKeyword, setAddressKeyword] = useState("");
   const [addressResults, setAddressResults] = useState([]);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formMessage, setFormMessage] = useState("");
   const categories = useAsync(() => sportApi.categories(), []);
   const sports = useAsync(() => sportApi.sports(form.category_id ? { category_id: form.category_id } : {}), [form.category_id]);
   const today = toDateInputValue(new Date());
@@ -145,21 +147,68 @@ function MobileMeetingCreate() {
     }));
   };
 
-  const submit = async (event) => {
-    event.preventDefault();
-    const startAt = combineDateTime(form.start_date, form.start_time);
-    const endAt = combineDateTime(form.end_date, form.end_time);
-    if (!startAt || isPastStart(form.start_date, form.start_time)) {
+  const validateStep = (targetStep = step) => {
+    if (targetStep === 1) {
+      if (!form.category_id || !form.sport_id) return "종목을 선택해주세요.";
+      if (!form.meeting_type || !form.purpose.trim()) return "모임 유형과 목적을 입력해주세요.";
+    }
+    if (targetStep === 2) {
+      if (!form.title.trim()) return "모임 제목을 입력해주세요.";
+      if (!form.description.trim()) return "모임 설명을 입력해주세요.";
+    }
+    if (targetStep === 3) {
+      if (!form.address.trim()) return "주소를 입력하거나 검색 결과를 선택해주세요.";
+      if (!form.location_name.trim()) return "장소명을 입력해주세요.";
+      if (!form.start_date || !form.start_time) return "시작 날짜와 시간을 입력해주세요.";
+      if (isPastStart(form.start_date, form.start_time)) return "지난 시간으로 모임을 만들 수 없습니다.";
+      if (form.end_date && form.end_time && new Date(combineDateTime(form.end_date, form.end_time)) <= new Date(combineDateTime(form.start_date, form.start_time))) {
+        return "종료 시간은 시작 시간 이후로 선택해주세요.";
+      }
+      if (Number(form.max_participants) < 2) return "정원은 최소 2명 이상이어야 합니다.";
+    }
+    return "";
+  };
+
+  const goNext = () => {
+    const message = validateStep(step);
+    if (message) {
+      setFormMessage(message);
       return;
     }
-    const data = await meetingApi.create({
-      ...form,
-      start_at: startAt,
-      end_at: endAt,
-      sport_id: Number(form.sport_id),
-      max_participants: Number(form.max_participants)
-    });
-    navigate(`/meetings/${data.meeting.id}`);
+    setFormMessage("");
+    setStep(step + 1);
+  };
+
+  const submit = async (event) => {
+    event.preventDefault();
+    const validationMessage = validateStep(3);
+    if (validationMessage) {
+      setFormMessage(validationMessage);
+      return;
+    }
+    const startAt = combineDateTime(form.start_date, form.start_time);
+    const endAt = combineDateTime(form.end_date, form.end_time);
+    setFormMessage("");
+    setSubmitting(true);
+    try {
+      const data = await meetingApi.create({
+        ...form,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        purpose: form.purpose.trim(),
+        location_name: form.location_name.trim(),
+        address: form.address.trim(),
+        start_at: startAt,
+        end_at: endAt || null,
+        sport_id: Number(form.sport_id),
+        max_participants: Number(form.max_participants)
+      });
+      navigate(`/meetings/${data.meeting.id}`);
+    } catch (error) {
+      setFormMessage(error.response?.data?.message || "모임을 등록하지 못했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -177,6 +226,7 @@ function MobileMeetingCreate() {
             {[1, 2, 3].map((item) => <i key={item} className={item <= step ? "active" : ""} />)}
           </div>
         </div>
+        {formMessage ? <p className="mobile-form-message mobile-form-message--error">{formMessage}</p> : null}
         {step === 1 && (
           <section>
             <label>
@@ -330,9 +380,9 @@ function MobileMeetingCreate() {
         <div className="form-actions">
           {step > 1 && <Button type="button" variant="secondary" onClick={() => setStep(step - 1)}>이전</Button>}
           {step < 3 ? (
-            <Button type="button" onClick={() => setStep(step + 1)}>다음</Button>
+            <Button type="button" onClick={goNext}>다음</Button>
           ) : (
-            <Button type="submit">모임 등록</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "등록 중..." : "모임 등록"}</Button>
           )}
         </div>
       </form>

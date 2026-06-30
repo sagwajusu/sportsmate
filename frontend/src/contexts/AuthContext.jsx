@@ -5,12 +5,21 @@ import { isSupabaseConfigured, supabase } from "../api/supabaseClient";
 const AuthContext = createContext(null);
 
 const SUPABASE_CONFIG_ERROR = "Supabase 환경변수가 설정되지 않아 인증 기능을 사용할 수 없습니다.";
+const SUPABASE_AUTH_PROVIDERS = ["google", "kakao"];
 
 function requireSupabase() {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error(SUPABASE_CONFIG_ERROR);
   }
   return supabase;
+}
+
+function normalizeAuthProvider(provider) {
+  const nextProvider = typeof provider === "string" ? provider : provider?.id;
+  if (!SUPABASE_AUTH_PROVIDERS.includes(nextProvider)) {
+    throw new Error("지원하지 않는 소셜 로그인 제공자입니다.");
+  }
+  return nextProvider;
 }
 
 function getAuthRedirectUrl(path = "/auth/callback") {
@@ -48,13 +57,11 @@ export function AuthProvider({ children }) {
     if (data.access_token) {
       localStorage.setItem("sportsmate_token", data.access_token);
     }
-    if (typeof data.is_new_user === "boolean") {
-      const currentRedirect = localStorage.getItem("sportsmate_post_auth_redirect");
-      if (data.is_new_user) {
-        localStorage.setItem("sportsmate_post_auth_redirect", "/mypage/profile");
-      } else if (currentRedirect !== "/mypage/profile") {
-        localStorage.setItem("sportsmate_post_auth_redirect", "/");
-      }
+    const currentRedirect = localStorage.getItem("sportsmate_post_auth_redirect");
+    if (data.profile_complete === false || data.is_new_user) {
+      localStorage.setItem("sportsmate_post_auth_redirect", "/mypage/profile");
+    } else if (!currentRedirect || currentRedirect === "/mypage/profile") {
+      localStorage.setItem("sportsmate_post_auth_redirect", "/");
     }
     setUser(data.user);
     return data;
@@ -183,8 +190,9 @@ export function AuthProvider({ children }) {
       async socialLogin(provider) {
         localStorage.removeItem("sportsmate_post_auth_redirect");
         const client = requireSupabase();
+        const nextProvider = normalizeAuthProvider(provider);
         const { data, error } = await client.auth.signInWithOAuth({
-          provider,
+          provider: nextProvider,
           options: {
             redirectTo: getAuthRedirectUrl("/auth/callback")
           }
@@ -225,6 +233,4 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
-
-
 

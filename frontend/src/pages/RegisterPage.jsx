@@ -185,7 +185,7 @@ function RegisterPage() {
       }
       if (isMobile) {
         await register(payload);
-        navigate("/");
+        navigate("/mypage/profile");
       } else {
         await registerVerifiedEmail(payload);
         setCompleted(true);
@@ -236,7 +236,10 @@ function RegisterPage() {
         <label>이메일<input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
         <label>비밀번호<input required type="password" minLength="8" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
 
+        {error ? <p className="mobile-auth-message mobile-auth-message--error">{error}</p> : null}
+        {notice ? <p className="mobile-auth-message mobile-auth-message--notice">{notice}</p> : null}
         <Button type="submit" disabled={loading}>{loading ? "처리 중..." : "가입하기"}</Button>
+        <SocialLoginButtons />
         <Link to="/login">이미 계정이 있어요</Link>
 
       </form>

@@ -9,6 +9,7 @@ import { userApi } from "../api/userApi";
 import { sportApi } from "../api/sportApi";
 import { locationApi } from "../api/locationApi";
 import { koreaRegions } from "../data/koreaRegions";
+import { useResponsive } from "../hooks/useResponsive";
 
 const T = {
   title: "\ud504\ub85c\ud544 \uc124\uc815",
