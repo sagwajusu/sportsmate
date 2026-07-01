@@ -14,7 +14,11 @@ def categories():
 def sports():
     query = Sport.query
     if request.args.get("category_id"):
-        query = query.filter_by(category_id=int(request.args["category_id"]))
+        try:
+            category_id = int(request.args["category_id"])
+        except (TypeError, ValueError):
+            return jsonify({"items": []})
+        query = query.filter_by(category_id=category_id)
     return jsonify({"items": [sport.to_dict() for sport in query.order_by(Sport.id).all()]})
 
 

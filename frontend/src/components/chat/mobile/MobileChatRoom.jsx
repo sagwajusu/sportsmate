@@ -7,6 +7,7 @@ import EmptyState from "../../common/EmptyState.jsx";
 import { chatApi } from "../../../api/chatApi";
 import { useAsync } from "../../../hooks/useAsync";
 import { useAuth } from "../../../contexts/AuthContext.jsx";
+import { isSupabaseConfigured, supabase } from "../../../api/supabaseClient";
 
 function formatMessageTime(value) {
   if (!value) return "";
@@ -20,6 +21,7 @@ function MobileChatRoom() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const bottomRef = useRef(null);
   const messages = useAsync(() => chatApi.messages(chatRoomId), [chatRoomId, refreshKey]);
   const room = messages.data?.room;
@@ -28,6 +30,42 @@ function MobileChatRoom() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.data?.items?.length]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.hidden || sending || realtimeConnected) return;
+      setRefreshKey((value) => value + 1);
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [realtimeConnected, sending]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase || !chatRoomId) {
+      setRealtimeConnected(false);
+      return undefined;
+    }
+
+    const channel = supabase
+      .channel(`mobile-chat-room-${chatRoomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
+          filter: `chat_room_id=eq.${chatRoomId}`
+        },
+        () => setRefreshKey((value) => value + 1)
+      )
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      setRealtimeConnected(false);
+      supabase.removeChannel(channel);
+    };
+  }, [chatRoomId]);
 
   const send = async (event) => {
     event.preventDefault();
@@ -48,7 +86,7 @@ function MobileChatRoom() {
   return (
     <>
       <MobileHeader title={meeting?.title || "채팅방"} />
-      {messages.loading ? (
+      {messages.loading && !messages.data ? (
         <LoadingCards count={3} />
       ) : messages.error ? (
         <EmptyState title="채팅방을 불러오지 못했습니다." description="참여 승인 상태를 확인하거나 잠시 후 다시 시도해주세요." actionLabel="채팅 목록" actionTo="/chats" />

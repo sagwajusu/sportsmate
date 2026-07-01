@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { CalendarClock, Eye, UserRound, Users } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { CalendarClock, Eye, LockKeyhole, MessageCircle, UserRound, Users } from "lucide-react";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 import Badge from "../../common/Badge.jsx";
 import Button from "../../common/Button.jsx";
@@ -15,6 +15,7 @@ import { voteApi } from "../../../api/voteApi";
 
 function MobileMeetingDetail() {
   const { meetingId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [message, setMessage] = useState({ text: "", tone: "notice" });
@@ -26,9 +27,21 @@ function MobileMeetingDetail() {
   const [checkingAttendance, setCheckingAttendance] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const detail = useAsync(() => meetingApi.detail(meetingId), [meetingId]);
-  const reviews = useAsync(() => meetingApi.reviews(meetingId), [meetingId, refreshKey]);
-  const notices = useAsync(() => meetingApi.notices(meetingId), [meetingId, refreshKey]);
-  const votes = useAsync(() => meetingApi.votes(meetingId), [meetingId, refreshKey]);
+  const detailMeeting = detail.data?.meeting;
+  const detailIsHost = user?.id === detailMeeting?.host?.id;
+  const detailCanViewMemberContent = Boolean(detailMeeting && (detailIsHost || detailMeeting.viewer_status === "approved"));
+  const reviews = useAsync(
+    () => detailCanViewMemberContent ? meetingApi.reviews(meetingId) : Promise.resolve({ items: [] }),
+    [meetingId, refreshKey, detailCanViewMemberContent]
+  );
+  const notices = useAsync(
+    () => detailCanViewMemberContent ? meetingApi.notices(meetingId) : Promise.resolve({ items: [] }),
+    [meetingId, refreshKey, detailCanViewMemberContent]
+  );
+  const votes = useAsync(
+    () => detailCanViewMemberContent ? meetingApi.votes(meetingId) : Promise.resolve({ items: [] }),
+    [meetingId, refreshKey, detailCanViewMemberContent]
+  );
 
   if (detail.loading) return <LoadingCards count={2} />;
 
@@ -38,6 +51,9 @@ function MobileMeetingDetail() {
   const isClosed = meeting.status !== "open";
   const isFull = Number(meeting.current_participants || 0) >= Number(meeting.max_participants || 0);
   const canJoin = !isHost && !isClosed && !isFull && !joining;
+  const chatRoomId = meeting.chat_room_id || location.state?.chatRoomId;
+  const viewerStatus = meeting.viewer_status || "";
+  const canViewMemberContent = isHost || viewerStatus === "approved";
 
   const joinMeeting = async () => {
     if (!isAuthenticated) {
@@ -153,37 +169,49 @@ function MobileMeetingDetail() {
           </dl>
         </div>
         <StaticMapCard meeting={meeting} />
-        <section className="detail-card">
-          <h2>공지</h2>
-          <div className="notice-list">
-            {(notices.data?.items || []).map((notice) => (
-              <article key={notice.id}>
-                <strong>{notice.is_pinned ? "고정 · " : ""}{notice.title}</strong>
-                <p>{notice.content}</p>
-              </article>
-            ))}
-            {!notices.loading && !notices.data?.items?.length && <p>등록된 공지가 없습니다.</p>}
-          </div>
-        </section>
-        <section className="detail-card">
-          <h2>투표</h2>
-          <div className="vote-list">
-            {(votes.data?.items || []).map((vote) => (
-              <article key={vote.id}>
-                <strong>{vote.title}</strong>
-                <div>
-                  {vote.options.map((option) => (
-                    <button type="button" key={option.id} onClick={() => participateVote(vote.id, option.id)}>
-                      {option.text} · {option.response_count}
-                    </button>
-                  ))}
-                </div>
-              </article>
-            ))}
-            {!votes.loading && !votes.data?.items?.length && <p>진행 중인 투표가 없습니다.</p>}
-          </div>
-          {isAuthenticated && <Button type="button" variant="secondary" onClick={checkAttendance} disabled={checkingAttendance}>{checkingAttendance ? "처리 중..." : "출석 체크"}</Button>}
-        </section>
+        {canViewMemberContent ? (
+          <>
+            <section className="detail-card">
+              <h2>공지</h2>
+              <div className="notice-list">
+                {(notices.data?.items || []).map((notice) => (
+                  <article key={notice.id}>
+                    <strong>{notice.is_pinned ? "고정 · " : ""}{notice.title}</strong>
+                    <p>{notice.content}</p>
+                  </article>
+                ))}
+                {!notices.loading && !notices.data?.items?.length && <p>등록된 공지가 없습니다.</p>}
+              </div>
+            </section>
+            <section className="detail-card">
+              <h2>투표</h2>
+              <div className="vote-list">
+                {(votes.data?.items || []).map((vote) => (
+                  <article key={vote.id}>
+                    <strong>{vote.title}</strong>
+                    <div>
+                      {vote.options.map((option) => (
+                        <button type="button" key={option.id} onClick={() => participateVote(vote.id, option.id)}>
+                          {option.text} · {option.response_count}
+                        </button>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+                {!votes.loading && !votes.data?.items?.length && <p>진행 중인 투표가 없습니다.</p>}
+              </div>
+              {isAuthenticated && <Button type="button" variant="secondary" onClick={checkAttendance} disabled={checkingAttendance}>{checkingAttendance ? "처리 중..." : "출석 체크"}</Button>}
+            </section>
+          </>
+        ) : (
+          <section className="detail-card member-only-card">
+            <LockKeyhole size={22} />
+            <div>
+              <h2>참여자 전용 정보</h2>
+              <p>공지, 투표, 출석 정보는 참여 승인 후 확인할 수 있습니다.</p>
+            </div>
+          </section>
+        )}
         <section className="detail-card">
           <h2>후기 요약</h2>
           <div className="review-list">
@@ -195,7 +223,7 @@ function MobileMeetingDetail() {
             ))}
             {!reviews.loading && !reviews.data?.items?.length && <p>아직 작성된 후기가 없습니다.</p>}
           </div>
-          {isAuthenticated && (
+          {isAuthenticated && canViewMemberContent && (
             <form className="review-form" onSubmit={submitReview}>
               <label>
                 평점
@@ -229,7 +257,15 @@ function MobileMeetingDetail() {
       <div className="sticky-cta">
         {message.text && <span className={`sticky-cta__message sticky-cta__message--${message.tone}`}>{message.text}</span>}
         {isHost ? (
-          <Link className="button button--primary" to={`/host/meetings/${meeting.id}`}>방장 관리</Link>
+          <div className="sticky-cta__split">
+            {chatRoomId ? (
+              <Link className="button button--secondary" to={`/chats/${chatRoomId}`}>
+                <MessageCircle size={18} />
+                채팅방
+              </Link>
+            ) : null}
+            <Link className="button button--primary" to={`/host/meetings/${meeting.id}`}>방장 관리</Link>
+          </div>
         ) : (
           <Button onClick={joinMeeting} disabled={!canJoin}>
             {joining ? "신청 중..." : isClosed ? "모집 마감" : isFull ? "정원 마감" : "참여 신청"}

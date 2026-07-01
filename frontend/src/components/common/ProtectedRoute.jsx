@@ -6,7 +6,7 @@ function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div className="page-message">\ub85c\uadf8\uc778 \uc815\ubcf4\ub97c \ud655\uc778\ud558\uace0 \uc788\uc2b5\ub2c8\ub2e4.</div>;
+    return <div className="page-message">로그인 정보를 확인하고 있습니다.</div>;
   }
 
   if (!isAuthenticated) {

@@ -4,23 +4,23 @@ import { useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext.jsx";
 
 const navItems = [
-  { to: "/", label: "\ud648", icon: Home },
-  { to: "/meetings", label: "\ubaa8\uc784\uac8c\uc2dc\ud310", icon: List },
-  { to: "/chats", label: "\ucc44\ud305", icon: MessageCircle },
-  { to: "/mypage", label: "\ub0b4 \uc815\ubcf4", icon: User }
+  { to: "/", label: "홈", icon: Home },
+  { to: "/meetings", label: "모임게시판", icon: List },
+  { to: "/chats", label: "채팅", icon: MessageCircle },
+  { to: "/mypage", label: "내 정보", icon: User }
 ];
 
 const copy = {
-  brandAlt: "SportsMate \ub85c\uace0",
-  searchPlaceholder: "\uc885\ubaa9, \uc7a5\uc18c, \ubaa8\uc784\uba85\uc744 \uac80\uc0c9\ud574\uc8fc\uc138\uc694",
-  searchLabel: "\ubaa8\uc784 \uac80\uc0c9",
-  search: "\uac80\uc0c9",
-  logout: "\ub85c\uadf8\uc544\uc6c3",
-  loginRegister: "\ub85c\uadf8\uc778/\ud68c\uc6d0\uac00\uc785",
-  modalTitle: "\ub85c\uadf8\uc544\uc6c3\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?",
-  modalBody: "\ud604\uc7ac \uacc4\uc815\uc758 \ub85c\uadf8\uc778 \uc0c1\ud0dc\uac00 \uc885\ub8cc\ub429\ub2c8\ub2e4.",
-  cancel: "\ucde8\uc18c",
-  confirm: "\ud655\uc778"
+  brandAlt: "SportsMate 로고",
+  searchPlaceholder: "종목, 장소, 모임명을 검색해주세요",
+  searchLabel: "모임 검색",
+  search: "검색",
+  logout: "로그아웃",
+  loginRegister: "로그인/회원가입",
+  modalTitle: "로그아웃하시겠습니까?",
+  modalBody: "현재 계정의 로그인 상태가 종료됩니다.",
+  cancel: "취소",
+  confirm: "확인"
 };
 
 function DesktopHeader() {

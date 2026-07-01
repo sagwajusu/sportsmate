@@ -6,18 +6,17 @@ import {
   Trophy, 
   AlertTriangle, 
   Settings, 
-  Search, 
-  Bell, 
   ChevronDown,
   BarChart3,
-  Plus
 } from "lucide-react";
+import { useResponsive } from "../hooks/useResponsive";
 
 function AdminLayout() {
   const location = useLocation();
+  const { isMobile } = useResponsive();
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Determine header title based on current route
+  // 현재 관리자 라우트에 맞춰 헤더 제목을 결정합니다.
   const getHeaderTitle = () => {
     if (location.pathname.startsWith("/admin/users/")) {
       return "회원 상세 정보";
@@ -40,9 +39,19 @@ function AdminLayout() {
     }
   };
 
+  if (isMobile) {
+    return (
+      <div className="mobile-shell">
+        <main className="mobile-main">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-layout-container">
-      {/* 1. Left Sidebar Navigation */}
+      {/* 왼쪽 관리자 사이드바 내비게이션입니다. */}
       <aside className="admin-sidebar">
         <div className="admin-sidebar__brand">
           <img src="/images/logo.png" alt="SportsMate" className="admin-sidebar__logo-img" />
@@ -162,14 +171,14 @@ function AdminLayout() {
         </div>
       </aside>
 
-      {/* 2. Right Content Pane */}
+      {/* 오른쪽 관리자 콘텐츠 영역입니다. */}
       <main className="admin-main">
-        {/* Upper Header Control Row */}
+        {/* 상단 관리자 헤더입니다. */}
         <header className="admin-header">
           <h1 className="admin-header__title">{getHeaderTitle()}</h1>
         </header>
 
-        {/* Content Render Target */}
+        {/* 하위 관리자 페이지가 렌더링되는 영역입니다. */}
         <div className="admin-scroll-content">
           <Outlet />
         </div>

@@ -275,6 +275,71 @@
   border-top: 1px solid #e2e8f0;
 }
 
+.profile-setup__level-toggle {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 38px;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #f8faff;
+  color: #334155;
+  padding: 0 13px;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.profile-setup__level-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #4f46e5;
+}
+
+.profile-setup__sport-levels {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 12px;
+  animation: profile-setup-slide-down 180ms ease both;
+}
+
+.profile-setup__sport-levels label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px;
+  gap: 10px;
+  align-items: center;
+}
+
+.profile-setup__sport-levels span {
+  overflow: hidden;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-setup__sport-levels select {
+  min-height: 40px;
+  border-radius: 8px;
+}
+
+@keyframes profile-setup-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .profile-setup__selected button {
   display: inline-flex;
   align-items: center;
@@ -282,6 +347,49 @@
   border-color: #bfdbfe;
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.profile-setup__security {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.profile-setup__security > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-setup__security svg {
+  flex: 0 0 auto;
+  color: #4f46e5;
+}
+
+.profile-setup__security h2 {
+  margin: 0;
+  color: #172554;
+  font-size: 1.06rem;
+}
+
+.profile-setup__security p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.profile-setup__security button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 0 14px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .profile-setup__error {
@@ -314,9 +422,26 @@
     grid-template-columns: 1fr;
   }
 
-  .profile-setup__intro {
+	  .profile-setup__intro {
+	    display: grid;
+	    padding: 22px;
+	  }
+
+  .profile-setup__level-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .profile-setup__sport-levels label {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-setup__security {
     display: grid;
-    padding: 22px;
+  }
+
+  .profile-setup__security button {
+    width: 100%;
   }
 }
 

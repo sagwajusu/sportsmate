@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { MapPin, UsersRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 import LoadingCards from "../../common/LoadingCards.jsx";
 import EmptyState from "../../common/EmptyState.jsx";
 import { chatApi } from "../../../api/chatApi";
 import { useAsync } from "../../../hooks/useAsync";
+import { isSupabaseConfigured, supabase } from "../../../api/supabaseClient";
 
 function formatChatTime(value) {
   if (!value) return "방금";
@@ -12,7 +14,44 @@ function formatChatTime(value) {
 }
 
 function MobileChatList() {
-  const rooms = useAsync(() => chatApi.rooms(), []);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const rooms = useAsync(() => chatApi.rooms(), [refreshKey]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.hidden || realtimeConnected) return;
+      setRefreshKey((value) => value + 1);
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [realtimeConnected]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setRealtimeConnected(false);
+      return undefined;
+    }
+
+    const channel = supabase
+      .channel("mobile-chat-list")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages"
+        },
+        () => setRefreshKey((value) => value + 1)
+      )
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      setRealtimeConnected(false);
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return (
     <>
@@ -22,7 +61,7 @@ function MobileChatList() {
         <h1>내 채팅</h1>
         <p>참여 중인 모임의 대화를 한곳에서 확인합니다.</p>
       </section>
-      {rooms.loading ? (
+      {rooms.loading && !rooms.data ? (
         <LoadingCards />
       ) : rooms.data?.items?.length ? (
         <div className="chat-list chat-list--rooms">

@@ -13,7 +13,12 @@ def parse_datetime(value):
 def list_meetings(params, current_user_id=None):
     query = Meeting.query
     if params.get("sport"):
-      query = query.filter(Meeting.sport_id == int(params["sport"]))
+        try:
+            sport_id = int(params["sport"])
+        except (TypeError, ValueError):
+            sport_id = None
+        if sport_id:
+            query = query.filter(Meeting.sport_id == sport_id)
     if params.get("sido"):
       query = query.filter(Meeting.region_sido_code == params["sido"])
     if params.get("sigungu"):

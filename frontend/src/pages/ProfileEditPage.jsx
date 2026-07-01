@@ -1,4 +1,4 @@
-import { Camera, CheckCircle2, MapPin, Search, X } from "lucide-react";
+import { Camera, CheckCircle2, KeyRound, MapPin, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/common/Button.jsx";
@@ -12,57 +12,57 @@ import { koreaRegions } from "../data/koreaRegions";
 import { useResponsive } from "../hooks/useResponsive";
 
 const T = {
-  title: "\ud504\ub85c\ud544 \uc124\uc815",
-  eyebrow: "\ucd94\uac00 \uc815\ubcf4 \uc785\ub825",
-  heading: "\uc6b4\ub3d9 \uba54\uc774\ud2b8 \ucd94\ucc9c\uc744 \uc704\ud55c \ud504\ub85c\ud544\uc744 \uc644\uc131\ud574\uc8fc\uc138\uc694",
-  description: "\uac00\uc785\uc740 \uc644\ub8cc\ub410\uc5b4\uc694. \uba87 \uac00\uc9c0 \uc815\ubcf4\ub9cc \ub354 \uc785\ub825\ud558\uba74 \ubaa8\uc784 \ucd94\ucc9c\uacfc \ub9e4\uce6d \ud488\uc9c8\uc774 \uc88b\uc544\uc9d1\ub2c8\ub2e4.",
-  connected: "Supabase Auth \uc5f0\uacb0\ub428",
-  previewAlt: "\ud504\ub85c\ud544 \ubbf8\ub9ac\ubcf4\uae30",
-  changePhoto: "\uc0ac\uc9c4 \ubcc0\uacbd",
-  name: "\uc774\ub984",
-  namePlaceholder: "\uc2e4\uba85 \ub610\ub294 \ud45c\uc2dc \uc774\ub984",
-  nickname: "\ub2c9\ub124\uc784",
-  nicknamePlaceholder: "\ubaa8\uc784\uc5d0\uc11c \uc0ac\uc6a9\ud560 \ub2c9\ub124\uc784",
-  phone: "\ud734\ub300\ud3f0 \ubc88\ud638",
-  optional: "\uc120\ud0dd \uc785\ub825",
-  bio: "\ud55c \uc904 \uc18c\uac1c",
-  bioPlaceholder: "\uc608: \ud3c9\uc77c \uc800\ub141 \ub7ec\ub2dd\uacfc \uc8fc\ub9d0 \ud48b\uc0b4\uc744 \uc88b\uc544\ud574\uc694.",
-  regionTitle: "\ud65c\ub3d9 \uc9c0\uc5ed",
-  regionDesc: "\uc8fc\ub85c \ucc38\uc5ec\ud560 \uc218 \uc788\ub294 \uc9c0\uc5ed\uc744 \uac80\uc0c9\ud558\uac70\ub098 \uc9c1\uc811 \uc785\ub825\ud574\uc8fc\uc138\uc694.",
-  sido: "\uc2dc/\ub3c4 \uc120\ud0dd",
-  all: "\uc804\uccb4",
-  noRegion: "\uc9c0\uc5ed \ubbf8\uc120\ud0dd",
-  sportsProfile: "\uc6b4\ub3d9 \ud504\ub85c\ud544",
-  sportsDescPrefix: "\uc804\uccb4 \uc6b4\ub3d9 \uc218\uc900\uc740",
-  sportsDescSuffix: "\uc73c\ub85c \uc800\uc7a5\ub429\ub2c8\ub2e4.",
-  preferredSports: "\uc120\ud638 \uc885\ubaa9",
-  preferredSportsDesc: "\uad00\uc2ec \uc788\ub294 \uc885\ubaa9\uc744 \uc5ec\ub7ec \uac1c \uc120\ud0dd\ud560 \uc218 \uc788\uc5b4\uc694.",
-  selectedUnit: "\uac1c \uc120\ud0dd",
-  categoryLabel: "\uc885\ubaa9 \uce74\ud14c\uace0\ub9ac",
-  saveError: "\ud504\ub85c\ud544 \uc800\uc7a5\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.",
-  later: "\ub098\uc911\uc5d0 \ud558\uae30",
-  saving: "\uc800\uc7a5 \uc911...",
-  save: "\ud504\ub85c\ud544 \uc800\uc7a5",
-  nicknameNoticeTitle: "\ub2c9\ub124\uc784\uc740 \uc784\uc2dc\ub85c \uc124\uc815\ub410\uc5b4\uc694",
-  nicknameNotice: "\uc18c\uc15c \uacc4\uc815\uc73c\ub85c \uac00\uc785\ud558\uba74 \uc774\uba54\uc77c @ \uc55e\ubd80\ubd84\uc744 \uae30\ubcf8 \ub2c9\ub124\uc784\uc73c\ub85c \uc124\uc815\ud569\ub2c8\ub2e4. \uac19\uc740 \ub2c9\ub124\uc784\uc774 \uc788\uc73c\uba74 \uc790\ub3d9\uc73c\ub85c \uace0\uc720 \ubb38\uc790\uac00 \ubd99\uc744 \uc218 \uc788\uc5b4\uc694. \ub2c9\ub124\uc784\uc740 \ub9c8\uc774\ud398\uc774\uc9c0\uc5d0\uc11c \uc5b8\uc81c\ub4e0 \uc218\uc815\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4."
+  title: "프로필 설정",
+  eyebrow: "추가 정보 입력",
+  heading: "운동 메이트 추천을 위한 프로필을 완성해주세요",
+  description: "가입은 완료됐어요. 몇 가지 정보만 더 입력하면 모임 추천과 매칭 품질이 좋아집니다.",
+  connected: "Supabase Auth 연결됨",
+  previewAlt: "프로필 미리보기",
+  changePhoto: "사진 변경",
+  name: "이름",
+  namePlaceholder: "실명 또는 표시 이름",
+  nickname: "닉네임",
+  nicknamePlaceholder: "모임에서 사용할 닉네임",
+  phone: "휴대폰 번호",
+  optional: "선택 입력",
+  bio: "한 줄 소개",
+  bioPlaceholder: "예: 평일 저녁 러닝과 주말 풋살을 좋아해요.",
+  regionTitle: "활동 지역",
+  regionDesc: "주로 참여할 수 있는 지역을 검색하거나 직접 입력해주세요.",
+  sido: "시/도 선택",
+  all: "전체",
+  noRegion: "지역 미선택",
+  sportsProfile: "운동 프로필",
+  sportsDescPrefix: "전체 운동 수준은",
+  sportsDescSuffix: "으로 저장됩니다.",
+  preferredSports: "선호 종목",
+  preferredSportsDesc: "관심 있는 종목을 여러 개 선택할 수 있어요.",
+  selectedUnit: "개 선택",
+  categoryLabel: "종목 카테고리",
+  saveError: "프로필 저장에 실패했습니다.",
+  later: "나중에 하기",
+  saving: "저장 중...",
+  save: "프로필 저장",
+  nicknameNoticeTitle: "닉네임은 임시로 설정됐어요",
+  nicknameNotice: "소셜 계정으로 가입하면 이메일 @ 앞부분을 기본 닉네임으로 설정합니다. 같은 닉네임이 있으면 자동으로 고유 문자가 붙을 수 있어요. 닉네임은 마이페이지에서 언제든 수정할 수 있습니다."
 };
 
 const levelOptions = [
-  { value: "beginner", label: "\uc785\ubb38" },
-  { value: "intermediate", label: "\uc911\uae09" },
-  { value: "advanced", label: "\uc0c1\uae09" }
+  { value: "beginner", label: "입문" },
+  { value: "intermediate", label: "중급" },
+  { value: "advanced", label: "상급" }
 ];
 
 const fallbackSportGroups = [
-  { category: { id: "fallback-ball", name: "\uad6c\uae30" }, sports: ["\ucd95\uad6c", "\ud48b\uc0b4", "\ub18d\uad6c", "\uc57c\uad6c", "\ubc30\uad6c", "\ud14c\ub2c8\uc2a4", "\ubc30\ub4dc\ubbfc\ud134", "\ud0c1\uad6c"] },
-  { category: { id: "fallback-fitness", name: "\ud53c\ud2b8\ub2c8\uc2a4" }, sports: ["\ud5ec\uc2a4", "\ud06c\ub85c\uc2a4\ud54f", "\ud544\ub77c\ud14c\uc2a4", "\uc694\uac00", "\ud648\ud2b8\ub808\uc774\ub2dd"] },
-  { category: { id: "fallback-run", name: "\ub7ec\ub2dd/\uc544\uc6c3\ub3c4\uc5b4" }, sports: ["\ub7ec\ub2dd", "\ub9c8\ub77c\ud1a4", "\ub4f1\uc0b0", "\uc790\uc804\uac70", "\ud2b8\ub808\ud0b9"] },
-  { category: { id: "fallback-water", name: "\uc218\uc0c1/\uaca8\uc6b8" }, sports: ["\uc218\uc601", "\uc11c\ud551", "\uc2a4\ud0a4", "\uc2a4\ub178\ubcf4\ub4dc"] },
-  { category: { id: "fallback-etc", name: "\uae30\ud0c0" }, sports: ["\ubcf5\uc2f1", "\ud074\ub77c\uc774\ubc0d", "\uace8\ud504", "\ub304\uc2a4", "\ubcfc\ub9c1"] }
+  { category: { id: "fallback-ball", name: "구기 종목" }, sports: ["축구", "풋살", "농구", "배구", "야구", "족구"] },
+  { category: { id: "fallback-racket", name: "라켓 스포츠" }, sports: ["배드민턴", "탁구", "테니스", "스쿼시"] },
+  { category: { id: "fallback-outdoor", name: "러닝 / 야외" }, sports: ["러닝", "등산", "트래킹", "자전거", "산책"] },
+  { category: { id: "fallback-fitness", name: "피트니스" }, sports: ["헬스", "크로스핏", "클라이밍", "요가", "필라테스"] },
+  { category: { id: "fallback-etc", name: "기타" }, sports: ["볼링", "당구", "골프", "수영"] }
 ];
 
 
-// 筌뤴뫀而???袁⑥쨮????쇱젟 ?遺얇늺?癒?퐣 ?????롫뮉 疫꿸퀡???ル굝???怨쀬뵠?怨쀬뿯??덈뼄.
+// API 응답이 비어 있거나 깨졌을 때 사용할 기본 종목 목록입니다.
 const fallbackCategories = fallbackSportGroups.map((group) => group.category);
 const fallbackSports = fallbackSportGroups.flatMap((group) =>
   group.sports.map((name, index) => ({
@@ -72,16 +72,14 @@ const fallbackSports = fallbackSportGroups.flatMap((group) =>
   }))
 );
 
-const defaultLevelMap = { all: "beginner" };
-
 function parsePreferredLevels(value) {
-  if (!value) return defaultLevelMap;
-  if (typeof value === "object") return Object.keys(value).length ? value : defaultLevelMap;
+  if (!value) return {};
+  if (typeof value === "object") return Object.keys(value).length ? value : {};
   try {
     const parsed = JSON.parse(value);
-    return parsed && Object.keys(parsed).length ? parsed : defaultLevelMap;
+    return parsed && Object.keys(parsed).length ? parsed : {};
   } catch {
-    return defaultLevelMap;
+    return {};
   }
 }
 
@@ -92,7 +90,7 @@ function splitSports(value) {
     .filter(Boolean);
 }
 
-// 筌뤴뫀而???袁⑹뒠 ?袁⑥쨮????쇱젟 ?뚮똾猷??곕뱜??낅빍?? PC ?遺얇늺?? ?袁⑥삋 ProfileEditPage ?브쑨由?癒?퐣 DesktopProfileEdit???????몃빍??
+// 모바일 프로필 수정 화면은 PC 프로필 수정 화면과 분리해 관리합니다.
 function MobileProfileEditPage() {
   const { isMobile } = useResponsive();
   const navigate = useNavigate();
@@ -120,6 +118,12 @@ function MobileProfileEditPage() {
   const [regionResults, setRegionResults] = useState([]);
   const [regionLoading, setRegionLoading] = useState(false);
   const [regionMessage, setRegionMessage] = useState("");
+  const [useSportLevels, setUseSportLevels] = useState(
+    initialSports.some((sportName) => Boolean(initialLevels[sportName]))
+  );
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [passwordStatus, setPasswordStatus] = useState("idle");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -190,7 +194,7 @@ function MobileProfileEditPage() {
     const keyword = regionKeyword.trim();
     setRegionMessage("");
     if (!keyword) {
-      setRegionMessage("\uac80\uc0c9\ud560 \uc8fc\uc18c\ub098 \uc9c0\uc5ed\uba85\uc744 \uc785\ub825\ud574\uc8fc\uc138\uc694.");
+      setRegionMessage("검색할 주소나 지역명을 입력해주세요.");
       return;
     }
     setRegionLoading(true);
@@ -199,11 +203,11 @@ function MobileProfileEditPage() {
       const items = data.items || [];
       setRegionResults(items);
       if (!items.length) {
-        setRegionMessage("\uac80\uc0c9 \uacb0\uacfc\uac00 \uc5c6\uc2b5\ub2c8\ub2e4. \uc785\ub825\ud55c \uc9c0\uc5ed\uba85\uc740 \uadf8\ub300\ub85c \uc800\uc7a5\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.");
+        setRegionMessage("검색 결과가 없습니다. 입력한 지역명은 그대로 저장할 수 있습니다.");
       }
     } catch {
       setRegionResults([]);
-      setRegionMessage("\uc8fc\uc18c\uac80\uc0c9 API\uc5d0 \uc5f0\uacb0\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4. \uc785\ub825\ud55c \uc9c0\uc5ed\uba85\uc740 \uadf8\ub300\ub85c \uc800\uc7a5\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.");
+      setRegionMessage("주소검색 API에 연결할 수 없습니다. 입력한 지역명은 그대로 저장할 수 있습니다.");
     } finally {
       setRegionLoading(false);
     }
@@ -230,19 +234,41 @@ function MobileProfileEditPage() {
   const toggleSport = (sportName) => {
     setForm((prev) => {
       const exists = prev.preferred_sports.includes(sportName);
+      const nextLevels = { ...prev.preferred_sport_levels };
+      if (exists) {
+        delete nextLevels[sportName];
+      } else {
+        nextLevels[sportName] = nextLevels[sportName] || prev.exercise_level;
+      }
       return {
         ...prev,
         preferred_sports: exists
           ? prev.preferred_sports.filter((name) => name !== sportName)
-          : [...prev.preferred_sports, sportName]
+          : [...prev.preferred_sports, sportName],
+        preferred_sport_levels: nextLevels
       };
     });
   };
 
   const removeSport = (sportName) => {
+    setForm((prev) => {
+      const nextLevels = { ...prev.preferred_sport_levels };
+      delete nextLevels[sportName];
+      return {
+        ...prev,
+        preferred_sports: prev.preferred_sports.filter((name) => name !== sportName),
+        preferred_sport_levels: nextLevels
+      };
+    });
+  };
+
+  const updateSportLevel = (sportName, level) => {
     setForm((prev) => ({
       ...prev,
-      preferred_sports: prev.preferred_sports.filter((name) => name !== sportName)
+      preferred_sport_levels: {
+        ...prev.preferred_sport_levels,
+        [sportName]: level
+      }
     }));
   };
 
@@ -252,6 +278,24 @@ function MobileProfileEditPage() {
     const reader = new FileReader();
     reader.onload = () => updateField("profile_image_url", reader.result);
     reader.readAsDataURL(file);
+  };
+
+  const updatePassword = (field, value) => {
+    setPasswordStatus("idle");
+    setPasswordForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const submitPasswordChange = () => {
+    // 실제 비밀번호 변경 API가 연결되기 전까지 모바일과 PC의 확인 흐름을 동일하게 맞춥니다.
+    if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+      setPasswordStatus("empty");
+      return;
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      setPasswordStatus("mismatch");
+      return;
+    }
+    setPasswordStatus("success");
   };
 
   const submit = async (event) => {
@@ -268,10 +312,9 @@ function MobileProfileEditPage() {
         region: form.region || "",
         exercise_level: form.exercise_level,
         preferred_sports: form.preferred_sports.join(", "),
-        preferred_sport_levels: {
-          ...form.preferred_sport_levels,
-          all: form.exercise_level
-        }
+        preferred_sport_levels: useSportLevels
+          ? { ...form.preferred_sport_levels, all: form.exercise_level }
+          : { all: form.exercise_level }
       });
       setCurrentUser(data.user);
       navigate("/", { replace: true });
@@ -354,11 +397,11 @@ function MobileProfileEditPage() {
                         searchRegion();
                       }
                     }}
-                    placeholder="\uc608: \uc11c\uc6b8 \uac15\ub0a8\uad6c, \uc7a0\uc2e4\uc885\ud569\uc6b4\ub3d9\uc7a5"
+                    placeholder="예: 서울 강남구, 잠실종합운동장"
                   />
                   <button type="button" onClick={searchRegion} disabled={regionLoading}>
                     <Search size={16} />
-                    {regionLoading ? "\uac80\uc0c9 \uc911" : "\uc8fc\uc18c\ucc3e\uae30"}
+                    {regionLoading ? "검색 중" : "주소찾기"}
                   </button>
                 </div>
                 {regionMessage ? <p className="profile-setup__address-message">{regionMessage}</p> : null}
@@ -417,7 +460,7 @@ function MobileProfileEditPage() {
               <div>
                 <h2>{T.preferredSports}</h2>
                 <p>{T.preferredSportsDesc}</p>
-                {!isMobile && usingFallbackSports ? <small className="profile-setup__sport-note">\uae30\ubcf8 \uc885\ubaa9 \ubaa9\ub85d\uc744 \ud45c\uc2dc\ud558\uace0 \uc788\uc2b5\ub2c8\ub2e4.</small> : null}
+                {!isMobile && usingFallbackSports ? <small className="profile-setup__sport-note">기본 종목 목록을 표시하고 있습니다.</small> : null}
               </div>
               <span>{form.preferred_sports.length}{T.selectedUnit}</span>
             </div>
@@ -450,16 +493,55 @@ function MobileProfileEditPage() {
                 })}
               </div>
             </div>
-            {form.preferred_sports.length > 0 && (
-              <div className="profile-setup__selected">
+            <label className="profile-setup__level-toggle">
+              <input
+                type="checkbox"
+                checked={useSportLevels}
+                onChange={(event) => setUseSportLevels(event.target.checked)}
+              />
+              <span>종목별 수준 선택하기</span>
+            </label>
+            {useSportLevels && form.preferred_sports.length > 0 ? (
+              <div className="profile-setup__sport-levels">
                 {form.preferred_sports.map((sportName) => (
-                  <button type="button" key={sportName} onClick={() => removeSport(sportName)}>
-                    {sportName}
-                    <X size={14} />
-                  </button>
+                  <label key={sportName}>
+                    <span>{sportName}</span>
+                    <select
+                      value={form.preferred_sport_levels[sportName] || form.exercise_level}
+                      onChange={(event) => updateSportLevel(sportName, event.target.value)}
+                    >
+                      {levelOptions.map((level) => (
+                        <option key={level.value} value={level.value}>{level.label}</option>
+                      ))}
+                    </select>
+                  </label>
                 ))}
               </div>
+            ) : null}
+            {form.preferred_sports.length > 0 && (
+              <div className="profile-setup__selected">
+                {form.preferred_sports.map((sportName) => {
+                  const levelLabel = levelOptions.find((level) => level.value === form.preferred_sport_levels[sportName])?.label;
+                  return (
+                    <button type="button" key={sportName} onClick={() => removeSport(sportName)}>
+                      {useSportLevels && levelLabel ? `${sportName}:${levelLabel}` : sportName}
+                      <X size={14} />
+                    </button>
+                  );
+                })}
+              </div>
             )}
+          </section>
+
+          <section className="profile-setup__panel profile-setup__security">
+            <div>
+              <KeyRound size={18} />
+              <div>
+                <h2>계정 보안</h2>
+                <p>비밀번호는 현재 비밀번호 확인 후 변경합니다.</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => setPasswordModalOpen(true)}>비밀번호 변경</button>
           </section>
 
           {error && <p className="profile-setup__error">{error}</p>}
@@ -469,6 +551,34 @@ function MobileProfileEditPage() {
           </div>
         </form>
       </main>
+      {passwordModalOpen ? (
+        <div className="profile-auth-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setPasswordModalOpen(false)}>
+          <section className="profile-auth-modal password-change-modal">
+            <button className="schedule-modal-close" type="button" onClick={() => setPasswordModalOpen(false)}><X size={18} /></button>
+            <h2>비밀번호 변경</h2>
+            <p>현재 비밀번호를 확인한 뒤 새 비밀번호로 변경합니다.</p>
+            <label>
+              현재 비밀번호
+              <input type="password" value={passwordForm.current} onChange={(event) => updatePassword("current", event.target.value)} />
+            </label>
+            <label>
+              새 비밀번호
+              <input type="password" value={passwordForm.next} onChange={(event) => updatePassword("next", event.target.value)} />
+            </label>
+            <label>
+              새 비밀번호 확인
+              <input type="password" value={passwordForm.confirm} onChange={(event) => updatePassword("confirm", event.target.value)} />
+            </label>
+            {passwordStatus === "empty" ? <em className="nickname-check warn">모든 비밀번호 항목을 입력해주세요.</em> : null}
+            {passwordStatus === "mismatch" ? <em className="nickname-check warn">새 비밀번호가 일치하지 않습니다.</em> : null}
+            {passwordStatus === "success" ? <em className="nickname-check ok">비밀번호 변경 흐름이 확인되었습니다.</em> : null}
+            <div>
+              <button className="ghost-btn" type="button" onClick={() => setPasswordModalOpen(false)}>취소</button>
+              <button className="primary-small" type="button" onClick={submitPasswordChange}>변경하기</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }
