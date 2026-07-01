@@ -255,6 +255,28 @@ function AdminAnalyticsPage() {
     alert(`데이터 집계 기간이 '${tab}'(으)로 전환되었습니다.`);
   };
 
+  if (loading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "400px", gap: "16px" }}>
+        <style>{`
+          @keyframes admin-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={{
+          width: "48px",
+          height: "48px",
+          border: "4px solid #f3f3f3",
+          borderTop: "4px solid #3b82f6",
+          borderRadius: "50%",
+          animation: "admin-spin 1s linear infinite"
+        }}></div>
+        <span style={{ fontSize: "16px", color: "#64748b", fontWeight: 600 }}>통계 데이터를 분석하는 중...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="analytics-page">
       {/* Upper Title Description & Filter row */}
@@ -324,17 +346,9 @@ function AdminAnalyticsPage() {
               {stats.activeMeetings}
               <span className="admin-stat-card__unit">개</span>
             </div>
-            <div className="admin-stat-card__sub-items">
-              <span className="admin-stat-card__sub-badge" style={{ borderLeft: "2px solid #3b82f6" }}>
-                축구 {stats.meetingsDetails.soccer}
-              </span>
-              <span className="admin-stat-card__sub-badge" style={{ borderLeft: "2px solid #f97316" }}>
-                러닝 {stats.meetingsDetails.running}
-              </span>
-              <span className="admin-stat-card__sub-badge" style={{ borderLeft: "2px solid #10b981" }}>
-                테니스 {stats.meetingsDetails.tennis}
-              </span>
-            </div>
+            <span className="admin-stat-card__trend" style={{ color: "#64748b", backgroundColor: "#f1f5f9", display: "inline-block", fontSize: "11px", fontWeight: 600, padding: "2px 6px", borderRadius: "4px" }}>
+              실시간 개설 및 매칭 중
+            </span>
           </div>
           <div className="admin-stat-card__icon-box admin-stat-card__icon-box--green">
             <Trophy size={20} />

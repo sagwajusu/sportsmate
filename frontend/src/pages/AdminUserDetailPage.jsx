@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { adminApi } from "../api/adminApi";
 import { 
   Mail, 
   Phone, 
@@ -154,21 +155,59 @@ const userDetailDb = {
 function AdminUserDetailPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  
-  // Default to minsu.kim (ID 1) if userId is not in keys
-  const initialData = userDetailDb[userId] || userDetailDb["1"];
-  const [userData, setUserData] = useState(initialData);
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Sync state if param changes
   useEffect(() => {
-    setUserData(userDetailDb[userId] || userDetailDb["1"]);
+    async function fetchUserDetail() {
+      try {
+        setLoading(true);
+        const res = await adminApi.userDetail(userId);
+        if (res && res.user) {
+          const user = res.user;
+          const formatted = {
+            name: user.name || "이름 없음",
+            nickname: user.nickname || "닉네임 없음",
+            sportTag: user.profile && user.profile.preferred_sports ? `🏃 ${user.profile.preferred_sports}` : "운동 메이트",
+            status: user.is_active === false ? "정지" : "정상 회원",
+            email: user.email || "이메일 없음",
+            phone: user.phone_number || "전화번호 없음",
+            joinedDate: user.created_at ? new Date(user.created_at).toLocaleDateString() : "2023.10.27",
+            location: user.profile && user.profile.region ? user.profile.region : "지역 미설정",
+            avatar: user.profile_image_url || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&fit=crop&q=80",
+            stats: {
+              meetingsCount: user.stats ? user.stats.meetingsCount : 0,
+              meetingsTrend: "",
+              attendanceRate: user.stats ? user.stats.attendanceRate : 0,
+              attendanceNote: user.stats && user.stats.attendanceRate >= 90 ? "상위 우수 회원" : "보통 회원",
+              mannerScore: user.stats ? user.stats.mannerScore : 0.0,
+              reviewsCount: user.stats ? user.stats.reviewsCount : 0
+            },
+            activities: user.activities || [],
+            reports: user.reports || [],
+            memo: user.is_active === false ? "정지된 계정입니다." : "정상적으로 서비스 이용 중인 회원입니다."
+          };
+          setUserData(formatted);
+        }
+      } catch (err) {
+        console.error("API error while loading user detail", err);
+        // Fallback to mock database
+        const fallback = userDetailDb[userId] || userDetailDb["1"];
+        setUserData(fallback);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUserDetail();
   }, [userId]);
 
   const handleEditInfo = () => {
+    if (!userData) return;
     alert(`${userData.name} 회원의 정보 수정 화면(기획 진행 중)으로 이동합니다.`);
   };
 
   const handleSendMessage = () => {
+    if (!userData) return;
     const text = prompt(`${userData.name} 회원에게 전송할 메시지를 입력해 주세요:`);
     if (text) {
       alert(`[메시지 전송 성공]
@@ -178,6 +217,7 @@ function AdminUserDetailPage() {
   };
 
   const toggleStatus = () => {
+    if (!userData) return;
     const nextStatus = userData.status === "정상 회원" ? "정지" : "정상 회원";
     if (window.confirm(`${userData.name} 회원의 상태를 '${nextStatus}'(으)로 변경하시겠습니까?`)) {
       setUserData(prev => ({
@@ -186,6 +226,25 @@ function AdminUserDetailPage() {
       }));
     }
   };
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "300px" }}>
+        <span style={{ fontSize: "16px", color: "#64748b", fontWeight: 600 }}>회원 상세 정보 불러오는 중...</span>
+      </div>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <div style={{ padding: "20px", textAlign: "center" }}>
+        <p style={{ color: "#ef4444", fontWeight: 600 }}>회원 정보를 불러오지 못했습니다.</p>
+        <Link to="/admin/users" style={{ color: "#2563eb", textDecoration: "none", fontWeight: 600 }}>
+          회원 목록으로 돌아가기
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-user-detail">

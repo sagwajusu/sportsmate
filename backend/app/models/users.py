@@ -46,6 +46,8 @@ class User(db.Model, TimestampMixin):
             "profile_image_url": self.profile_image_url,
             "role": self.role,
             "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "provider": self.provider,
             "profile": {
                 "region": profile.region if profile else "",
                 "bio": profile.bio if profile else "",

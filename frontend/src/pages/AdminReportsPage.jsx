@@ -11,7 +11,7 @@ const mockReports = [
 ];
 
 function AdminReportsPage() {
-  const [reports, setReports] = useState(mockReports);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,65 +75,89 @@ function AdminReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {reports.length === 0 ? (
+              <style>{`
+                @keyframes admin-spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              `}</style>
+              {loading ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: "center", padding: "50px 0" }}>
+                    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                      <div className="admin-loading-spinner" style={{
+                        width: "32px",
+                        height: "32px",
+                        border: "3px solid #f3f3f3",
+                        borderTop: "3px solid #3b82f6",
+                        borderRadius: "50%",
+                        animation: "admin-spin 1s linear infinite"
+                      }}></div>
+                      <span style={{ fontSize: "14px", color: "#64748b", fontWeight: 500 }}>신고 데이터를 불러오는 중...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : reports.length === 0 ? (
                 <tr>
                   <td colSpan="8" style={{ textAlign: "center", color: "#64748b", padding: "48px 24px" }}>
                     접수된 신고 내역이 없습니다.
                   </td>
                 </tr>
-              ) : reports.map((r) => {
-                const isWaiting = r.status === "대기 중";
-                const badgeType = 
-                  r.type === "욕설" 
-                    ? "red" 
-                    : r.type === "노쇼" 
-                      ? "orange" 
-                      : "gray";
+              ) : (
+                reports.map((r) => {
+                  const isWaiting = r.status === "대기 중";
+                  const badgeType = 
+                    r.type === "욕설" 
+                      ? "red" 
+                      : r.type === "노쇼" 
+                        ? "orange" 
+                        : "gray";
 
-                return (
-                  <tr key={r.id}>
-                    <td>#{r.id}</td>
-                    <td>
-                      <span className={`admin-badge admin-badge--${badgeType}`}>
-                        {r.type}
-                      </span>
-                    </td>
-                    <td style={{ fontWeight: 600 }}>{r.target}</td>
-                    <td>{r.reporter}</td>
-                    <td style={{ color: "#475569", fontSize: "13px", lineHeight: "1.4" }}>
-                      {r.reason || "사유가 적혀있지 않습니다."}
-                    </td>
-                    <td style={{ color: "#64748b" }}>{r.date}</td>
-                    <td>
-                      <div className="admin-state-indicator">
-                        <span className={`admin-state-indicator__dot admin-state-indicator__dot--${isWaiting ? "waiting" : "done"}`}></span>
-                        <span className={`admin-state-indicator__text--${isWaiting ? "waiting" : "done"}`}>
-                          {r.status}
+                  return (
+                    <tr key={r.id}>
+                      <td>#{r.id}</td>
+                      <td>
+                        <span className={`admin-badge admin-badge--${badgeType}`}>
+                          {r.type}
                         </span>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleProcess(r.id)}
-                        disabled={!isWaiting}
-                        className={`admin-table-action-btn admin-table-action-btn--${isWaiting ? "primary" : "outline"}`}
-                        style={{ opacity: isWaiting ? 1 : 0.6, cursor: isWaiting ? "pointer" : "default" }}
-                      >
-                        {isWaiting ? (
-                          <>
-                            <AlertTriangle size={13} style={{ marginRight: "4px" }} /> 처리하기
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle size={13} style={{ marginRight: "4px" }} /> 처리 완료됨
-                          </>
-                        )}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{r.target}</td>
+                      <td>{r.reporter}</td>
+                      <td style={{ color: "#475569", fontSize: "13px", lineHeight: "1.4" }}>
+                        {r.reason || "사유가 적혀있지 않습니다."}
+                      </td>
+                      <td style={{ color: "#64748b" }}>{r.date}</td>
+                      <td>
+                        <div className="admin-state-indicator">
+                          <span className={`admin-state-indicator__dot admin-state-indicator__dot--${isWaiting ? "waiting" : "done"}`}></span>
+                          <span className={`admin-state-indicator__text--${isWaiting ? "waiting" : "done"}`}>
+                            {r.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleProcess(r.id)}
+                          disabled={!isWaiting}
+                          className={`admin-table-action-btn admin-table-action-btn--${isWaiting ? "primary" : "outline"}`}
+                          style={{ opacity: isWaiting ? 1 : 0.6, cursor: isWaiting ? "pointer" : "default" }}
+                        >
+                          {isWaiting ? (
+                            <>
+                              <AlertTriangle size={13} style={{ marginRight: "4px" }} /> 처리하기
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle size={13} style={{ marginRight: "4px" }} /> 처리 완료됨
+                            </>
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
