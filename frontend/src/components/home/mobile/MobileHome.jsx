@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Activity, Bike, CalendarPlus, CircleDot, Dribbble, Dumbbell, Footprints, Goal, MapPinned, Mountain, Search, Sparkles, Trophy, Volleyball, Waves } from "lucide-react";
+import { Activity, Bike, CalendarPlus, CircleDot, Dribbble, Dumbbell, Footprints, Goal, MapPinned, Mountain, Search, ShieldCheck, Sparkles, Trophy, Volleyball, Waves } from "lucide-react";
 import { useMemo } from "react";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 import MeetingCard from "../../meeting/shared/MeetingCard.jsx";
@@ -34,6 +34,11 @@ function getSportIcon(sportName) {
   return sportIconRules.find((rule) => rule.pattern.test(sportName))?.icon || Dumbbell;
 }
 
+function isAdminUser(user) {
+  const role = String(user?.role || user?.profile?.role || "").toLowerCase();
+  return Boolean(user?.is_admin || user?.isAdmin || role === "admin" || role === "administrator");
+}
+
 function MobileHome() {
   const { user } = useAuth();
   const meetings = useAsync(() => meetingApi.list({ limit: 5 }), []);
@@ -47,6 +52,7 @@ function MobileHome() {
     [preferredSports]
   );
   const hasPreferredSports = sportShortcuts.length > 0;
+  const showAdminEntry = isAdminUser(user);
 
   return (
     <>
@@ -70,6 +76,13 @@ function MobileHome() {
           모임 만들기
         </Link>
       </div>
+
+      {showAdminEntry ? (
+        <Link className="mobile-admin-entry" to="/admin">
+          <ShieldCheck size={20} />
+          <span>관리자 대시보드 이동하기</span>
+        </Link>
+      ) : null}
 
       <section className="home-sport-shortcuts" aria-label="선호 종목 바로가기">
         {hasPreferredSports ? (

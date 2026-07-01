@@ -6,7 +6,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 function tagLabel(user) {
   const rawTag = user?.user_tag || user?.user_tag_display || user?.nickname_with_tag?.match(/\[([^\]]+)\]/)?.[1] || "";
   const normalized = String(rawTag).replace(/^#/, "").replace(/^\[/, "").replace(/\]$/, "").trim();
-  return normalized ? `[${normalized}]` : "";
+  return normalized ? `#${normalized}` : "";
 }
 
 function ProfileIntroPage() {

@@ -56,7 +56,8 @@ class Meeting(db.Model, TimestampMixin):
             "status": self.status,
             "approval_required": self.approval_required,
             "cover_image_url": self.cover_image_url,
-            "view_count": self.view_count
+            "view_count": self.view_count,
+            "chat_room_id": self.chat_room.id if self.chat_room else None
         }
         if current_user_id:
             participant = next((item for item in self.participants if item.user_id == current_user_id), None)

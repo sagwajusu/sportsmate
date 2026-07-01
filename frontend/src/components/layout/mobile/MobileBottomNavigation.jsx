@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 
 const items = [
   { to: "/", label: "홈", icon: Home },
-  { to: "/meetings", label: "경기", icon: UsersRound },
+  { to: "/meetings", label: "모임", icon: UsersRound },
   { to: "/chats", label: "채팅", icon: MessageCircle },
   { to: "/notifications", label: "알림", icon: Bell },
   { to: "/mypage", label: "내 정보", icon: User }

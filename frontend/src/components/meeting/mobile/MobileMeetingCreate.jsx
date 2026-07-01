@@ -31,6 +31,23 @@ const initialForm = {
   approval_required: true
 };
 
+const fallbackSportGroups = [
+  { category: { id: "fallback-ball", name: "구기 종목", purpose: "팀 모집 / 친선전" }, sports: ["축구", "풋살", "농구", "배구", "야구", "족구"] },
+  { category: { id: "fallback-racket", name: "라켓 스포츠", purpose: "파트너 모집 / 친선전" }, sports: ["배드민턴", "탁구", "테니스", "스쿼시"] },
+  { category: { id: "fallback-outdoor", name: "러닝 / 야외", purpose: "동행 모집 / 팀 모집" }, sports: ["러닝", "등산", "트래킹", "자전거", "산책"] },
+  { category: { id: "fallback-fitness", name: "피트니스", purpose: "파트너 모집 / 운동 메이트 모집" }, sports: ["헬스", "크로스핏", "클라이밍", "요가", "필라테스"] },
+  { category: { id: "fallback-etc", name: "기타", purpose: "파트너 모집" }, sports: ["볼링", "당구", "골프", "수영"] }
+];
+
+const fallbackCategories = fallbackSportGroups.map((group) => group.category);
+const fallbackSports = fallbackSportGroups.flatMap((group) =>
+  group.sports.map((name, index) => ({
+    id: `${group.category.id}-${index}`,
+    name,
+    category_id: group.category.id
+  }))
+);
+
 const pad = (value) => String(value).padStart(2, "0");
 
 const toDateInputValue = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -44,6 +61,8 @@ const isPastStart = (date, time) => {
   return new Date(combineDateTime(date, time)).getTime() < Date.now() - 1000;
 };
 
+const isNumericId = (value) => /^\d+$/.test(String(value || ""));
+
 function MobileMeetingCreate() {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
@@ -54,30 +73,41 @@ function MobileMeetingCreate() {
   const [submitting, setSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState("");
   const categories = useAsync(() => sportApi.categories(), []);
-  const sports = useAsync(() => sportApi.sports(form.category_id ? { category_id: form.category_id } : {}), [form.category_id]);
+  const sports = useAsync(() => sportApi.sports(isNumericId(form.category_id) ? { category_id: form.category_id } : {}), [form.category_id]);
   const today = toDateInputValue(new Date());
   const nowTime = toTimeInputValue(new Date());
   const selectedRegion = koreaRegions.find((region) => region.name === form.region_sido);
+  const displayCategories = useMemo(
+    () => categories.data?.items?.length ? categories.data.items : fallbackCategories,
+    [categories.data?.items]
+  );
+  const displaySports = useMemo(
+    () => sports.data?.items?.length
+      ? sports.data.items
+      : fallbackSports.filter((sport) => String(sport.category_id) === String(form.category_id || displayCategories[0]?.id)),
+    [displayCategories, form.category_id, sports.data?.items]
+  );
+  const usingFallbackSports = !categories.data?.items?.length || !sports.data?.items?.length;
 
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
   const selectedCategory = useMemo(
-    () => (categories.data?.items || []).find((category) => String(category.id) === String(form.category_id)),
-    [categories.data?.items, form.category_id]
+    () => displayCategories.find((category) => String(category.id) === String(form.category_id)),
+    [displayCategories, form.category_id]
   );
 
   useEffect(() => {
-    const firstCategory = categories.data?.items?.[0];
+    const firstCategory = displayCategories[0];
     if (!form.category_id && firstCategory) {
       setForm((prev) => ({ ...prev, category_id: String(firstCategory.id), purpose: firstCategory.purpose.split("/")[0].trim() }));
     }
-  }, [categories.data?.items, form.category_id]);
+  }, [displayCategories, form.category_id]);
 
   useEffect(() => {
-    const firstSport = sports.data?.items?.[0];
-    if (firstSport && !sports.data.items.some((sport) => String(sport.id) === String(form.sport_id))) {
+    const firstSport = displaySports[0];
+    if (firstSport && !displaySports.some((sport) => String(sport.id) === String(form.sport_id))) {
       setForm((prev) => ({ ...prev, sport_id: String(firstSport.id) }));
     }
-  }, [sports.data?.items, form.sport_id]);
+  }, [displaySports, form.sport_id]);
 
   useEffect(() => {
     if (!addressKeyword.trim()) {
@@ -95,7 +125,7 @@ function MobileMeetingCreate() {
   }, [addressKeyword]);
 
   const updateCategory = (categoryId) => {
-    const category = (categories.data?.items || []).find((item) => String(item.id) === String(categoryId));
+    const category = displayCategories.find((item) => String(item.id) === String(categoryId));
     setForm((prev) => ({
       ...prev,
       category_id: categoryId,
@@ -150,6 +180,7 @@ function MobileMeetingCreate() {
   const validateStep = (targetStep = step) => {
     if (targetStep === 1) {
       if (!form.category_id || !form.sport_id) return "종목을 선택해주세요.";
+      if (usingFallbackSports || !isNumericId(form.sport_id)) return "종목 데이터가 아직 DB와 연결되지 않았습니다. 관리자에게 종목 데이터 등록을 요청해주세요.";
       if (!form.meeting_type || !form.purpose.trim()) return "모임 유형과 목적을 입력해주세요.";
     }
     if (targetStep === 2) {
@@ -203,7 +234,12 @@ function MobileMeetingCreate() {
         sport_id: Number(form.sport_id),
         max_participants: Number(form.max_participants)
       });
-      navigate(`/meetings/${data.meeting.id}`);
+      navigate(`/meetings/${data.meeting.id}`, {
+        state: {
+          createdMeeting: true,
+          chatRoomId: data.meeting.chat_room_id
+        }
+      });
     } catch (error) {
       setFormMessage(error.response?.data?.message || "모임을 등록하지 못했습니다.");
     } finally {
@@ -230,9 +266,9 @@ function MobileMeetingCreate() {
         {step === 1 && (
           <section>
             <label>
-              대분류
+              카테고리
               <select value={form.category_id} onChange={(event) => updateCategory(event.target.value)}>
-                {(categories.data?.items || []).map((category) => (
+                {displayCategories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
@@ -242,13 +278,14 @@ function MobileMeetingCreate() {
             <label>
               종목
               <select required value={form.sport_id} onChange={(event) => update("sport_id", event.target.value)}>
-                {(sports.data?.items || []).map((sport) => (
+                {displaySports.map((sport) => (
                   <option key={sport.id} value={sport.id}>
                     {sport.name}
                   </option>
                 ))}
               </select>
             </label>
+            {usingFallbackSports ? <p className="mobile-form-message">기본 종목 목록을 표시하고 있습니다. 실제 등록은 DB 종목 데이터가 연결된 뒤 가능합니다.</p> : null}
             {selectedCategory?.purpose && (
               <div className="purpose-pills">
                 {selectedCategory.purpose.split("/").map((purpose) => (

@@ -225,7 +225,7 @@ function RegisterPage() {
         nickname: form.nickname
       };
       if (!isMobile && !isCurrentEmailVerified) {
-        setError("\uc774\uba54\uc77c \uc778\uc99d\uc744 \uc644\ub8cc\ud574 \uc8fc\uc138\uc694.");
+        setError("이메일 인증을 완료해 주세요.");
         return;
       }
       if (isMobile) {

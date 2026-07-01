@@ -7,6 +7,7 @@ import {
   Edit3,
   MapPin,
   Megaphone,
+  ShieldCheck,
   UserCheck,
   Users,
   Vote
@@ -74,6 +75,15 @@ function HostMeetingManagePage() {
     <>
       <MobileHeader title="모임 관리" />
       <div className="manage-page">
+        <section className="host-manage-hero">
+          <span>운영 중</span>
+          <h1>{meeting.title}</h1>
+          <p>{meeting.location_name || meeting.place || meeting.address || "장소 미정"}</p>
+          <div>
+            <strong><Users size={16} />{meeting.current_participants ?? 0}/{meeting.max_participants ?? 0}명</strong>
+            <strong><CalendarDays size={16} />{meeting.start_at ? new Date(meeting.start_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric", weekday: "short" }) : "일정 미정"}</strong>
+          </div>
+        </section>
         <MeetingCard meeting={meeting} />
         <div className="manage-actions">
           <Link to={`/meetings/${meeting.id}/edit`}><Edit3 size={18} /> 정보 수정</Link>
@@ -81,8 +91,14 @@ function HostMeetingManagePage() {
           <Link to={`/host/meetings/${meeting.id}/attendance`}><ClipboardCheck size={18} /> 출석 관리</Link>
           <Link to={`/host/meetings/${meeting.id}/vote`}><Vote size={18} /> 투표 관리</Link>
         </div>
-        <section className="detail-card">
-          <h2>공지 작성</h2>
+        <section className="detail-card host-notice-editor">
+          <div className="host-section-head">
+            <div>
+              <span><Megaphone size={15} />공지</span>
+              <h2>참여자에게 알릴 내용을 작성해요</h2>
+            </div>
+            <ShieldCheck size={22} />
+          </div>
           <form className="review-form" onSubmit={submitNotice}>
             <label>제목<input required value={notice.title} onChange={(event) => setNotice({ ...notice, title: event.target.value })} /></label>
             <label>내용<textarea required value={notice.content} onChange={(event) => setNotice({ ...notice, content: event.target.value })} /></label>
@@ -93,8 +109,14 @@ function HostMeetingManagePage() {
             <Button type="submit" variant="secondary">공지 등록</Button>
           </form>
         </section>
-        <section className="detail-card">
-          <h2>등록된 공지</h2>
+        <section className="detail-card host-notice-history">
+          <div className="host-section-head">
+            <div>
+              <span><Megaphone size={15} />최근 공지</span>
+              <h2>등록된 공지</h2>
+            </div>
+            <strong>{noticeItems.length}개</strong>
+          </div>
           <div className="notice-list">
             {noticeItems.map((item) => (
               <article key={item.id}>

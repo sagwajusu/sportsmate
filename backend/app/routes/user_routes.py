@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from app.extensions import db
-from app.models import Participant, Review, User
+from app.models import Participant, Review, User, UserProfile
 
 user_bp = Blueprint("users", __name__)
 
@@ -36,6 +36,11 @@ def update_me():
     for field in ["name", "phone_number", "nickname", "profile_image_url"]:
         if field in data:
             setattr(user, field, normalize_phone_number(data[field]) if field == "phone_number" else data[field])
+
+    profile_fields = ["region", "bio", "exercise_level", "preferred_sports", "preferred_sport_levels"]
+    if any(field in data for field in profile_fields) and not user.profile:
+        # 2026-07-01: 프로필 레코드가 없는 계정도 프로필 수정 저장이 DB에 반영되도록 생성.
+        user.profile = UserProfile()
 
     if user.profile:
         for field in ["region", "bio", "exercise_level", "preferred_sports"]:

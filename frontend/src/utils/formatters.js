@@ -15,7 +15,8 @@ export function formatMeetingType(type) {
 
 export function formatExerciseLevel(level) {
   const labels = {
-    beginner: "초급",
+    // 2026-07-01: exercise_level 표시 명칭을 모바일/프로필 수정 화면과 통일.
+    beginner: "입문",
     intermediate: "중급",
     advanced: "상급"
   };

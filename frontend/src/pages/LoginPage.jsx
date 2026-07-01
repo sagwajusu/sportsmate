@@ -36,7 +36,7 @@ function LoginPage() {
     setLoading(true);
     try {
       await login(form);
-      sessionStorage.setItem("sportsmate_flash", "\ub85c\uadf8\uc778\ud558\uc168\uc2b5\ub2c8\ub2e4.");
+      sessionStorage.setItem("sportsmate_flash", "로그인하셨습니다.");
       navigate(location.state?.from || "/");
     } catch (submitError) {
       setError(submitError.message || submitError.response?.data?.message || "로그인에 실패했습니다.");

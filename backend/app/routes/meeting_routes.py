@@ -40,6 +40,15 @@ def show(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
     meeting.view_count += 1
     db.session.commit()
+
+    payload = meeting.to_dict()
+    current_user_id = current_user_id_optional()
+    participant = None
+    if current_user_id:
+        participant = Participant.query.filter_by(meeting_id=meeting_id, user_id=current_user_id).first()
+    payload["viewer_participant"] = participant.to_dict() if participant else None
+    payload["viewer_role"] = "host" if current_user_id and meeting.host_id == current_user_id else participant.role if participant else ""
+    payload["viewer_status"] = "approved" if current_user_id and meeting.host_id == current_user_id else participant.status if participant else ""
     return jsonify({"meeting": meeting.to_dict(current_user_id=current_user_id)})
 
 
@@ -200,13 +209,20 @@ def attendance(meeting_id):
 @jwt_required()
 def check_attendance(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
-    user_id = int(get_jwt_identity())
-    participant = Participant.query.filter_by(meeting_id=meeting_id, user_id=user_id, status="approved").first()
-    if not participant and meeting.host_id != user_id:
+    current_user_id = int(get_jwt_identity())
+    data = request.get_json(silent=True) or {}
+    target_user_id = int(data.get("user_id") or current_user_id)
+    is_host = meeting.host_id == current_user_id
+    participant = Participant.query.filter_by(meeting_id=meeting_id, user_id=target_user_id, status="approved").first()
+    if not participant and not is_host:
         return jsonify({"message": "승인된 참여자만 출석 체크할 수 있습니다."}), 403
-    row = Attendance.query.filter_by(meeting_id=meeting_id, user_id=user_id).first()
+    if target_user_id != current_user_id and not is_host:
+        return jsonify({"message": "방장만 다른 참여자의 출석을 체크할 수 있습니다."}), 403
+    if not participant and is_host and target_user_id != current_user_id:
+        return jsonify({"message": "승인된 참여자만 출석 체크할 수 있습니다."}), 400
+    row = Attendance.query.filter_by(meeting_id=meeting_id, user_id=target_user_id).first()
     if not row:
-        row = Attendance(meeting_id=meeting_id, user_id=user_id, status="present")
+        row = Attendance(meeting_id=meeting_id, user_id=target_user_id, status="present")
         db.session.add(row)
     db.session.commit()
     return jsonify({"attendance": row.to_dict()})

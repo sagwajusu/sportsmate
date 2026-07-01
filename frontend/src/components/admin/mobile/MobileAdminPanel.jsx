@@ -1,13 +1,8 @@
 import { Link } from "react-router-dom";
 import { Activity, AlertTriangle, BarChart3, CalendarDays, ChevronRight, CircleDollarSign, Dumbbell, Gavel, Search, ShieldCheck, Trophy, UserRound, UsersRound } from "lucide-react";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
-
-const summaryItems = [
-  { label: "총 회원수", value: "12,450", icon: UsersRound, tone: "blue" },
-  { label: "활성 모임", value: "342", icon: Dumbbell, tone: "indigo" },
-  { label: "신고 대기", value: "18", icon: AlertTriangle, tone: "amber" },
-  { label: "월간 수익", value: "₩12.4M", icon: CircleDollarSign, tone: "green" }
-];
+import { adminApi } from "../../../api/adminApi";
+import { useAsync } from "../../../hooks/useAsync";
 
 const categoryItems = [
   { label: "축구", value: "42%", trend: "+12%", icon: Trophy },
@@ -16,6 +11,17 @@ const categoryItems = [
 ];
 
 function MobileAdminPanel({ title = "관리자 관리" }) {
+  const users = useAsync(() => adminApi.users(), []);
+  const meetings = useAsync(() => adminApi.meetings(), []);
+  const reports = useAsync(() => adminApi.reports(), []);
+  const pendingReports = (reports.data?.items || []).filter((item) => item.status === "pending" || item.status === "대기 중").length;
+  const summaryItems = [
+    { label: "총 회원수", value: users.loading ? "확인 중" : `${users.data?.items?.length || 0}`, icon: UsersRound, tone: "blue" },
+    { label: "활성 모임", value: meetings.loading ? "확인 중" : `${meetings.data?.items?.length || 0}`, icon: Dumbbell, tone: "indigo" },
+    { label: "신고 대기", value: reports.loading ? "확인 중" : `${pendingReports}`, icon: AlertTriangle, tone: "amber" },
+    { label: "월간 수익", value: "준비 중", icon: CircleDollarSign, tone: "green" }
+  ];
+
   return (
     <>
       <MobileHeader title={title} />
@@ -42,7 +48,7 @@ function MobileAdminPanel({ title = "관리자 관리" }) {
         <h2>관리 메뉴</h2>
         <Link to="/admin/users"><UserRound size={18} />회원 관리<ChevronRight size={17} /></Link>
         <Link to="/admin/meetings"><Dumbbell size={18} />모임 관리<ChevronRight size={17} /></Link>
-        <Link to="/admin/reports"><Gavel size={18} />신고 관리<em>18건</em><ChevronRight size={17} /></Link>
+        <Link to="/admin/reports"><Gavel size={18} />신고 관리<em>{reports.loading ? "확인 중" : `${pendingReports}건`}</em><ChevronRight size={17} /></Link>
         <Link to="/admin"><ShieldCheck size={18} />운영 대시보드<ChevronRight size={17} /></Link>
       </section>
 

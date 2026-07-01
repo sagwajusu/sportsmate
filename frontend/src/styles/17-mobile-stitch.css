@@ -1,4 +1,4 @@
-/* Mobile-only Stitch design pass. Keep desktop and backend surfaces untouched. */
+/* 모바일 전용 Stitch 디자인 정리입니다. 데스크톱과 백엔드 영역에는 영향을 주지 않습니다. */
 .mobile-shell {
   --mobile-primary: #4f46e5;
   --mobile-primary-dark: #3730a3;
@@ -162,6 +162,22 @@
   color: #334155;
 }
 
+.mobile-shell .mobile-admin-entry {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: -10px 0 24px;
+  border: 1px solid rgba(79, 70, 229, 0.18);
+  border-radius: 18px;
+  background: #eef2ff;
+  color: var(--mobile-primary);
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 12px 24px rgba(79, 70, 229, 0.12);
+}
+
 .mobile-shell .home-sport-shortcuts {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -248,6 +264,11 @@
   border-color: rgba(79, 70, 229, 0.36);
   background: #eef2ff;
   color: var(--mobile-primary);
+}
+
+.mobile-shell .chip-scroll button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .mobile-shell .chip-scroll--muted button.active {
@@ -1000,6 +1021,30 @@
   margin-top: 10px;
 }
 
+.mobile-shell .member-only-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-color: rgba(79, 70, 229, 0.18);
+  background: #f8faff;
+}
+
+.mobile-shell .member-only-card svg {
+  flex: 0 0 auto;
+  color: var(--mobile-primary);
+}
+
+.mobile-shell .member-only-card h2 {
+  margin: 0 0 5px;
+}
+
+.mobile-shell .member-only-card p {
+  margin: 0;
+  color: var(--mobile-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .mobile-shell .vote-list button {
   min-height: 38px;
   border-color: rgba(79, 70, 229, 0.18);
@@ -1015,6 +1060,27 @@
 
 .mobile-shell .sticky-cta .button {
   box-shadow: 0 18px 34px rgba(79, 70, 229, 0.28);
+}
+
+.mobile-shell .sticky-cta__split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 10px;
+}
+
+.mobile-shell .sticky-cta__split .button {
+  min-width: 0;
+}
+
+.mobile-shell .sticky-cta__split .button--secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-color: var(--mobile-border);
+  background: #fff;
+  color: var(--mobile-primary);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
 }
 
 .mobile-shell .sticky-cta__message {
@@ -1113,6 +1179,84 @@
   text-align: center;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.mobile-shell .mobile-profile-intro-slot {
+  display: grid !important;
+  width: 100%;
+  justify-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.mobile-shell .mobile-profile-intro-quick {
+  display: inline-flex;
+  max-width: 280px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  padding: 0;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.mobile-shell .mobile-profile-intro-quick span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-shell .mobile-profile-intro-edit {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto 30px 30px;
+  width: min(100%, 292px);
+  align-items: center;
+  gap: 6px;
+}
+
+.mobile-shell .mobile-profile-intro-edit input {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  padding: 0 10px;
+  font-size: 13px;
+  outline: none;
+}
+
+.mobile-shell .mobile-profile-intro-edit input::placeholder {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.mobile-shell .mobile-profile-intro-edit span {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mobile-shell .mobile-profile-intro-edit button {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.mobile-shell .mobile-profile-intro-slot em {
+  color: #fecaca;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
 }
 
 .mobile-shell .profile-edit-shortcut {
@@ -1527,6 +1671,38 @@
   padding: 16px;
 }
 
+.mobile-shell .host-mobile-hero {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(199, 210, 254, 0.72);
+  border-radius: 26px;
+  background: linear-gradient(135deg, #eef2ff 0%, #f0fdfa 100%);
+  padding: 20px;
+  box-shadow: 0 18px 34px rgba(79, 70, 229, 0.09);
+}
+
+.mobile-shell .host-mobile-hero span {
+  color: var(--mobile-primary);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.mobile-shell .host-mobile-hero h1 {
+  margin: 0;
+  color: var(--mobile-text);
+  font-size: 22px;
+  line-height: 1.28;
+}
+
+.mobile-shell .host-mobile-hero p {
+  margin: 0;
+  color: var(--mobile-muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
 .mobile-shell .host-card strong {
   color: var(--mobile-text);
   font-size: 16px;
@@ -1565,6 +1741,36 @@
   border-color: transparent;
   background: var(--mobile-primary);
   color: #fff;
+}
+
+.mobile-shell .host-card--rich {
+  gap: 14px;
+}
+
+.mobile-shell .host-card > .host-card__summary {
+  display: grid;
+  gap: 6px;
+}
+
+.mobile-shell .host-card__summary span {
+  width: fit-content;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--mobile-primary);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.mobile-shell .host-card__summary em {
+  width: fit-content;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .mobile-shell .host-tool-panel > div {
@@ -1777,6 +1983,58 @@
   gap: 14px;
 }
 
+.mobile-shell .host-manage-hero {
+  display: grid;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(79, 70, 229, 0.16);
+  border-radius: 26px;
+  background: linear-gradient(135deg, #312e81 0%, #4f46e5 58%, #0ea5e9 100%);
+  color: #fff;
+  padding: 20px;
+  box-shadow: 0 20px 36px rgba(79, 70, 229, 0.24);
+}
+
+.mobile-shell .host-manage-hero > span {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.mobile-shell .host-manage-hero h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.28;
+}
+
+.mobile-shell .host-manage-hero p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mobile-shell .host-manage-hero > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mobile-shell .host-manage-hero strong {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 .mobile-shell .manage-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1801,6 +2059,164 @@
 
 .mobile-shell .manage-actions a svg {
   color: var(--mobile-primary);
+}
+
+.mobile-shell .host-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-shell .host-section-head > div {
+  display: grid;
+  gap: 5px;
+}
+
+.mobile-shell .host-section-head span {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--mobile-primary);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.mobile-shell .host-section-head > svg {
+  color: var(--mobile-primary);
+}
+
+.mobile-shell .host-section-head > strong {
+  border-radius: 999px;
+  background: #f8faff;
+  color: var(--mobile-primary);
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.mobile-shell .host-notice-editor,
+.mobile-shell .host-notice-history {
+  gap: 15px;
+}
+
+.mobile-shell .host-vote-editor,
+.mobile-shell .host-vote-history {
+  gap: 15px;
+}
+
+.mobile-shell .host-section-head button {
+  display: inline-flex;
+  min-height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(79, 70, 229, 0.18);
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--mobile-primary);
+  padding: 0 11px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.mobile-shell .host-vote-options {
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-shell .host-vote-options label {
+  gap: 7px;
+}
+
+.mobile-shell .host-vote-options label > span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+}
+
+.mobile-shell .host-vote-options input {
+  min-width: 0;
+}
+
+.mobile-shell .host-vote-options button {
+  display: inline-flex;
+  width: 42px;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: 14px;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.mobile-shell .host-applicant-hero {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(79, 70, 229, 0.16);
+  border-radius: 26px;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8faff 100%);
+  padding: 20px;
+}
+
+.mobile-shell .host-applicant-hero span {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--mobile-primary);
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.mobile-shell .host-applicant-hero h1 {
+  margin: 0;
+  color: var(--mobile-text);
+  font-size: 22px;
+  line-height: 1.28;
+}
+
+.mobile-shell .host-applicant-hero p {
+  margin: 0;
+  color: var(--mobile-muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.mobile-shell .applicant-card {
+  padding: 16px;
+}
+
+.mobile-shell .applicant-card__header span,
+.mobile-shell .applicant-card__chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobile-shell .applicant-card p {
+  margin: 10px 0 0;
+  border-radius: 16px;
+  background: #f8faff;
+  color: #475569;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.mobile-shell .applicant-card__actions .button {
+  min-height: 46px;
+  gap: 6px;
 }
 
 .mobile-shell .attendance-list {
@@ -1855,6 +2271,21 @@
 .mobile-shell .attendance-list span.checked {
   background: #dcfce7;
   color: #15803d;
+}
+
+.mobile-shell .attendance-list article > .attendance-list__control {
+  display: grid;
+  min-width: auto;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 7px;
+}
+
+.mobile-shell .attendance-list__control .button {
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 12px;
 }
 
 .mobile-shell .host-stats-hero,

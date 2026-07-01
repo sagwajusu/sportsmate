@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarCheck, Dumbbell, Footprints, MapPin, MessageCircle, Pencil, Star, Trophy } from "lucide-react";
+import { CalendarCheck, Check, Dumbbell, Footprints, MapPin, MessageCircle, Pencil, Star, Trophy, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 import Button from "../../common/Button.jsx";
 import EmptyState from "../../common/EmptyState.jsx";
@@ -32,7 +33,7 @@ function formatRating(value) {
 
 function MobileMyPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, setCurrentUser } = useAuth();
   const meetings = useAsync(() => (user ? userApi.myMeetings() : Promise.resolve({ hosted: [], joined: [], pending: [] })), [user?.id]);
   const reviews = useAsync(() => (user ? userApi.myReviews() : Promise.resolve({ items: [] })), [user?.id]);
 
@@ -43,10 +44,38 @@ function MobileMyPage() {
   const pendingCount = meetings.data?.pending?.length || 0;
   const reviewCount = reviews.data?.items?.length || 0;
   const exerciseLevel = levelLabels[profile.exercise_level] || "입문";
+  const introStorageKey = user?.id ? `sportsmate_profile_extra_${user.id}` : "sportsmate_profile_extra_guest";
+  const initialIntro = useMemo(() => profile.bio || (() => {
+    try {
+      return JSON.parse(localStorage.getItem(introStorageKey) || "{}").intro || "";
+    } catch {
+      return "";
+    }
+  })(), [introStorageKey, profile.bio]);
+  const [introEdit, setIntroEdit] = useState(false);
+  const [introDraft, setIntroDraft] = useState(initialIntro);
+  const [introSaving, setIntroSaving] = useState(false);
+  const [introMessage, setIntroMessage] = useState("");
 
   const handleLogout = async () => {
     await logout();
     navigate("/login", { replace: true });
+  };
+
+  const saveIntro = async () => {
+    const nextIntro = introDraft.trim().slice(0, 30);
+    setIntroSaving(true);
+    setIntroMessage("");
+    try {
+      const data = await userApi.updateMe({ bio: nextIntro });
+      setCurrentUser(data.user);
+      localStorage.setItem(introStorageKey, JSON.stringify({ intro: nextIntro }));
+      setIntroEdit(false);
+    } catch {
+      setIntroMessage("상태메시지를 저장하지 못했습니다.");
+    } finally {
+      setIntroSaving(false);
+    }
   };
 
   if (!user) {
@@ -71,7 +100,31 @@ function MobileMyPage() {
         <div>
           <strong>{user.nickname || user.name || "스포츠메이트"}</strong>
           <p>{exerciseLevel} · {profile.region || "활동 지역 미설정"}</p>
-          {profile.bio ? <small>{profile.bio}</small> : null}
+          <div className="mobile-profile-intro-slot">
+            {introEdit ? (
+              <div className="mobile-profile-intro-edit">
+                <input
+                  value={introDraft}
+                  maxLength={30}
+                  onChange={(event) => setIntroDraft(event.target.value)}
+                  placeholder="상태메시지를 입력하세요"
+                />
+                <span>{introDraft.length}/30</span>
+                <button type="button" onClick={saveIntro} disabled={introSaving} aria-label="상태메시지 저장">
+                  <Check size={14} />
+                </button>
+                <button type="button" onClick={() => { setIntroDraft(initialIntro); setIntroEdit(false); }} aria-label="상태메시지 취소">
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button className="mobile-profile-intro-quick" type="button" onClick={() => setIntroEdit(true)}>
+                <span>{initialIntro || "상태메시지 입력"}</span>
+                <Pencil size={13} />
+              </button>
+            )}
+            {introMessage ? <em>{introMessage}</em> : null}
+          </div>
           <div className="profile-sport-tags" aria-label="선호 종목">
             {preferredSports.length ? preferredSports.slice(0, 4).map((sport) => (
               <span key={sport}><Dumbbell size={16} />{sport}</span>

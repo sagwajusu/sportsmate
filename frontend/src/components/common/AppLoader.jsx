@@ -31,10 +31,10 @@ function AppLoader() {
           </div>
           <div className="juice-ripples"><span /><span /><span /></div>
         </div>
-        <p>{"4\uacfc\uc8fc\uc2a4 \u00b7 Sportsmate"}</p>
-        <h1>{"\uac00\ubccd\uac8c \uc6b4\ub3d9\uc744 \uc2dc\uc791\ud558\uace0"}<br />{"\uc6b4\ub3d9 \uba54\uc774\ud2b8\ub97c \ub9e4\uce6d\ud574\uc694"}</h1>
+        <p>{"4과주스 · Sportsmate"}</p>
+        <h1>{"가볍게 운동을 시작하고"}<br />{"운동 메이트를 매칭해요"}</h1>
         <div className="loading-track"><div className="loading-bar" /></div>
-        <span>{"\uc9c0\uc5ed, \uc885\ubaa9, \uc2dc\uac04\ub300\ub97c \uc900\ube44\ud558\uace0 \uc788\uc5b4\uc694"}</span>
+        <span>{"지역, 종목, 시간대를 준비하고 있어요"}</span>
       </section>
     </div>
   );
