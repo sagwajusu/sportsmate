@@ -52,13 +52,19 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState("");
+  const [backendTokenReady, setBackendTokenReady] = useState(false);
 
   const syncProfile = async (supabaseUser, fallback = {}) => {
     if (!supabaseUser) return null;
     setAuthError("");
     const data = await authApi.sync(metadataFromSupabaseUser(supabaseUser, fallback));
     if (data.access_token) {
+      // 2026-07-01: 보호 API 호출은 백엔드 토큰 발급 이후에만 허용.
       localStorage.setItem("sportsmate_token", data.access_token);
+      setBackendTokenReady(true);
+    } else {
+      localStorage.removeItem("sportsmate_token");
+      setBackendTokenReady(false);
     }
     if (typeof data.is_new_user === "boolean") {
       const currentRedirect = localStorage.getItem("sportsmate_post_auth_redirect");
@@ -79,6 +85,7 @@ export function AuthProvider({ children }) {
     if (!isSupabaseConfigured || !supabase) {
       setSession(null);
       setUser(null);
+      setBackendTokenReady(false);
       setLoading(false);
       return () => {
         mounted = false;
@@ -90,11 +97,13 @@ export function AuthProvider({ children }) {
       const currentSession = data.session;
       setSession(currentSession);
       localStorage.removeItem("sportsmate_token");
+      setBackendTokenReady(false);
       if (currentSession?.user) {
         try {
           await syncProfile(currentSession.user, { allow_nickname_suffix: true });
         } catch (error) {
           setAuthError(error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.");
+          setBackendTokenReady(false);
           setUser(null);
         }
       }
@@ -104,15 +113,18 @@ export function AuthProvider({ children }) {
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       setSession(nextSession);
       localStorage.removeItem("sportsmate_token");
+      setBackendTokenReady(false);
       if (nextSession?.user) {
         try {
           await syncProfile(nextSession.user, { allow_nickname_suffix: true });
         } catch (error) {
           setAuthError(error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.");
+          setBackendTokenReady(false);
           setUser(null);
         }
       } else {
         setAuthError("");
+        setBackendTokenReady(false);
         setUser(null);
       }
       setLoading(false);
@@ -129,6 +141,7 @@ export function AuthProvider({ children }) {
       user,
       session,
       authError,
+      backendTokenReady,
       loading,
       isAuthenticated: Boolean(user),
       async login(payload) {
@@ -245,6 +258,7 @@ export function AuthProvider({ children }) {
           await supabase.auth.signOut();
         }
         localStorage.removeItem("sportsmate_token");
+        setBackendTokenReady(false);
         setAuthError("");
         setUser(null);
         setSession(null);
@@ -253,7 +267,7 @@ export function AuthProvider({ children }) {
         setUser(nextUser);
       }
     }),
-    [user, session, authError, loading]
+    [user, session, authError, backendTokenReady, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

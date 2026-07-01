@@ -99,6 +99,34 @@
   white-space: normal;
 }
 
+.profile-user-tag {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.82);
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+/* 2026-07-01: PC 내 정보 제목 렌더링을 내 채팅 등 legacy PC 제목과 동일하게 맞춤. */
+.profile-page-title {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.profile-page-title h1 {
+  font-size: 22px;
+  font-weight: 950;
+}
+
 .profile-card p {
   width: 100%;
   max-width: 100%;
@@ -667,6 +695,76 @@
   gap: 8px;
 }
 
+/* 2026-07-01: PC 내 정보 일정 모달을 실제 내 모임 데이터 목록으로 확인할 수 있게 보정. */
+.profile-calendar-summary {
+  display: grid;
+  max-height: 320px;
+  gap: 8px;
+  overflow: auto;
+}
+
+.profile-calendar-summary a,
+.profile-calendar-summary > span {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 12px;
+  text-decoration: none;
+}
+
+.profile-calendar-summary strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-calendar-summary span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 2026-07-01: PC 내 정보 달력 모달은 월간 달력 안에 모임 일정을 직접 표시. */
+.profile-calendar-day {
+  cursor: default;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+}
+
+.profile-calendar-day.has-event {
+  cursor: pointer;
+}
+
+.profile-calendar-day:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.profile-calendar-day.is-outside {
+  background: #f8fafc;
+  color: #cbd5e1;
+}
+
+.profile-calendar-day-panel {
+  width: min(100%, 620px);
+}
+
+.profile-calendar-empty {
+  margin: 14px 0 0;
+}
+
 /* 2026-06-29: PC 프로필 수정은 마이페이지 확장형이 아닌 별도 페이지로 구성. */
 .desktop-profile-edit {
   display: grid;
@@ -720,6 +818,7 @@
 .desktop-profile-preview {
   display: flex;
   min-width: 0;
+  min-height: 286px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -741,6 +840,7 @@
 
 .desktop-profile-preview h2 {
   width: 100%;
+  min-height: 30px;
   margin: 18px 0 0;
   overflow: hidden;
   color: #ffffff;
@@ -750,8 +850,14 @@
   white-space: nowrap;
 }
 
+.desktop-profile-preview-tag {
+  flex: 0 0 auto;
+  margin-top: 8px;
+}
+
 .desktop-profile-preview p {
   width: 100%;
+  min-height: 20px;
   margin: 7px 0 0;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.78);
@@ -878,6 +984,33 @@
   border-color: #c7d2fe;
   background: #eef2ff;
   transform: translateY(-1px);
+}
+
+/* 2026-07-01: 닉네임과 고유 태그를 같은 행의 별도 필드로 배치해 기본 정보 높이를 줄임. */
+.desktop-nickname-tag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 330px) 124px;
+  gap: 12px;
+  max-width: 466px;
+}
+
+.desktop-nickname-tag-row label {
+  min-width: 0;
+}
+
+.desktop-nickname-tag {
+  display: inline-flex;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .nickname-check {
