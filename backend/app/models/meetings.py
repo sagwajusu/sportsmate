@@ -69,6 +69,37 @@ class Meeting(db.Model, TimestampMixin):
             } if participant else None
         return data
 
+    def to_list_dict(self, current_user_id=None):
+        participant = None
+        if current_user_id:
+            participant = next((item for item in self.participants if item.user_id == current_user_id), None)
+        return {
+            "id": self.id,
+            "sport": self.sport.to_dict() if self.sport else None,
+            "sport_name": self.sport.name if self.sport else "",
+            "title": self.title,
+            "description": self.description,
+            "meeting_type": self.meeting_type,
+            "location_name": self.location_name,
+            "address": self.address,
+            "start_at": self.start_at.isoformat() if self.start_at else None,
+            "max_participants": self.max_participants,
+            "current_participants": self.current_participants,
+            "status": self.status,
+            "cover_image_url": self.cover_image_url,
+            "chat_room_id": self.chat_room.id if self.chat_room else None,
+            "host": {
+                "id": self.host.id,
+                "nickname": self.host.nickname,
+                "profile_image_url": self.host.profile_image_url
+            } if self.host else None,
+            "my_participant": {
+                "id": participant.id,
+                "role": participant.role,
+                "status": participant.status
+            } if participant else None
+        }
+
 class Participant(db.Model):
     __tablename__ = "participants"
 
