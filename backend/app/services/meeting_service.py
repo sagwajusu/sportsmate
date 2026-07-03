@@ -78,7 +78,7 @@ def list_meetings(params, current_user_id=None):
     if params.get("status"):
       query = query.filter(Meeting.status == params["status"])
     else:
-      query = query.filter(Meeting.status == "open")
+      query = query.filter(Meeting.status.in_(["open", "full"]))
     if params.get("mine") == "host" and current_user_id:
       query = query.filter(Meeting.host_id == current_user_id)
     if params.get("mine") == "joined" and current_user_id:
@@ -115,6 +115,7 @@ def update_meeting(meeting_id, host_id, data):
         meeting.start_at = parse_datetime(data["start_at"])
     if "end_at" in data:
         meeting.end_at = parse_datetime(data.get("end_at"))
+    meeting.sync_status()
     db.session.commit()
     return meeting
 

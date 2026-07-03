@@ -118,7 +118,15 @@ def join(meeting_id):
 @jwt_required()
 def cancel_join(meeting_id):
     participant = Participant.query.filter_by(meeting_id=meeting_id, user_id=int(get_jwt_identity())).first_or_404()
+    original_status = participant.status
     participant.status = "cancelled"
+    
+    if original_status == "approved":
+        meeting = participant.meeting
+        if meeting:
+            meeting.current_participants = max(1, meeting.current_participants - 1)
+            meeting.sync_status()
+            
     db.session.commit()
     return jsonify({"participant": participant.to_dict()})
 

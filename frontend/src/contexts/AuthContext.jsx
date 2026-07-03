@@ -102,7 +102,11 @@ export function AuthProvider({ children }) {
         try {
           await syncProfile(currentSession.user, { allow_nickname_suffix: true });
         } catch (error) {
-          setAuthError(error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.");
+          const msg = error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.";
+          if (msg === "정지된 회원입니다.") {
+            alert("정지된 회원입니다.");
+          }
+          setAuthError(msg);
           setBackendTokenReady(false);
           setUser(null);
           if (supabase) {
@@ -121,7 +125,11 @@ export function AuthProvider({ children }) {
         try {
           await syncProfile(nextSession.user, { allow_nickname_suffix: true });
         } catch (error) {
-          setAuthError(error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.");
+          const msg = error?.response?.data?.message || error?.message || "로그인 동기화에 실패했습니다.";
+          if (msg === "정지된 회원입니다.") {
+            alert("정지된 회원입니다.");
+          }
+          setAuthError(msg);
           setBackendTokenReady(false);
           setUser(null);
           if (supabase) {
