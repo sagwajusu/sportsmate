@@ -45,6 +45,13 @@ class Meeting(db.Model, TimestampMixin):
             return "취소됨"
         return "마감"
 
+    def sync_status(self):
+        if self.status not in ["closed", "cancelled"]:
+            if self.current_participants >= self.max_participants:
+                self.status = "full"
+            else:
+                self.status = "open"
+
     def to_dict(self, current_user_id=None):
         data = {
             "id": self.id,

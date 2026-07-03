@@ -200,6 +200,7 @@ def update_meeting(meeting_id):
         except ValueError:
             pass
             
+    meeting.sync_status()
     db.session.commit()
     return jsonify({"meeting": meeting.to_dict()})
 
@@ -237,6 +238,7 @@ def kick_member(meeting_id, user_id):
     meeting = Meeting.query.get(meeting_id)
     if meeting and participant.status == "approved":
         meeting.current_participants = max(1, meeting.current_participants - 1)
+        meeting.sync_status()
         
     db.session.delete(participant)
     db.session.commit()

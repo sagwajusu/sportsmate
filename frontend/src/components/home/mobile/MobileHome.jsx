@@ -41,7 +41,7 @@ function isAdminUser(user) {
 
 function MobileHome() {
   const { user } = useAuth();
-  const meetings = useAsync(() => meetingApi.list({ limit: 5 }), []);
+  const meetings = useAsync(() => meetingApi.list({ limit: 5, status: "open" }), []);
   const categories = useAsync(() => sportApi.categories(), []);
   const preferredSports = useMemo(
     () => splitPreferredSports(user?.profile?.preferred_sports),
