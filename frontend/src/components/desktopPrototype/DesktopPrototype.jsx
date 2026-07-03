@@ -381,7 +381,7 @@ function DesktopPrototype({ page }) {
 
 function HomeContent() {
   const [recommendRetryKey, setRecommendRetryKey] = useState(0);
-  const recommendedMeetings = useAsync(() => meetingApi.list({ limit: 10 }), [recommendRetryKey]);
+  const recommendedMeetings = useAsync(() => meetingApi.list({ limit: 10, status: "open" }), [recommendRetryKey]);
   const sports = useAsync(() => sportApi.sports(), []);
   const recommendedItems = recommendedMeetings.data?.items || [];
   const navigate = useNavigate();
