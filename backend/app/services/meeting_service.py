@@ -150,6 +150,13 @@ def update_meeting(meeting_id, host_id, data):
     if meeting.host_id != host_id:
         raise PermissionError("방장만 수정할 수 있습니다.")
 
+    if "max_participants" in data:
+        from app.utils.settings import load_system_settings
+        settings = load_system_settings()
+        max_limit = settings.get("defaultMaxParticipants", 6)
+        if int(data["max_participants"]) > max_limit:
+            raise ValueError(f"개설 최대 정원은 {max_limit}명 이하로만 설정 가능합니다.")
+
     updatable_fields = [
         "sport_id",
         "title",
@@ -182,6 +189,13 @@ def create_meeting(data, host_id):
     sport = Sport.query.get(data["sport_id"])
     if not sport:
         raise ValueError("존재하지 않는 종목입니다.")
+
+    from app.utils.settings import load_system_settings
+    settings = load_system_settings()
+    max_limit = settings.get("defaultMaxParticipants", 6)
+    max_participants = int(data.get("max_participants", 6))
+    if max_participants > max_limit:
+        raise ValueError(f"개설 최대 정원은 {max_limit}명 이하로만 설정 가능합니다.")
 
     meeting = Meeting(
         host_id=host_id,

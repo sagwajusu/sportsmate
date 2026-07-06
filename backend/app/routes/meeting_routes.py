@@ -10,6 +10,15 @@ from app.services.meeting_service import close_expired_one_time_meetings, create
 meeting_bp = Blueprint("meetings", __name__)
 
 
+@meeting_bp.get("/config")
+def get_meeting_config():
+    from app.utils.settings import load_system_settings
+    settings = load_system_settings()
+    return jsonify({
+        "defaultMaxParticipants": settings.get("defaultMaxParticipants", 6)
+    })
+
+
 def current_user_id_optional():
     try:
         verify_jwt_in_request(optional=True)

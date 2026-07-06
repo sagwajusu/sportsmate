@@ -22,10 +22,13 @@ function AdminMeetingsPage() {
   const [tempSearchQuery, setTempSearchQuery] = useState("");
   const [activeSearchField, setActiveSearchField] = useState("all");
   const [activeSearchQuery, setActiveSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const handleSearch = () => {
     setActiveSearchField(searchField);
     setActiveSearchQuery(tempSearchQuery);
+    setCurrentPage(1);
   };
 
   const handleReset = () => {
@@ -33,6 +36,7 @@ function AdminMeetingsPage() {
     setTempSearchQuery("");
     setActiveSearchField("all");
     setActiveSearchQuery("");
+    setCurrentPage(1);
   };
 
   const handleKeyDown = (e) => {
@@ -95,6 +99,11 @@ function AdminMeetingsPage() {
     }
   };
 
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeSearchQuery, activeSearchField]);
+
   const filteredMeetings = meetings.filter(m => {
     if (!activeSearchQuery) return true;
     const query = activeSearchQuery.toLowerCase();
@@ -123,6 +132,11 @@ function AdminMeetingsPage() {
     }
   });
 
+  // Pagination slice
+  const totalPages = Math.max(1, Math.ceil(filteredMeetings.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedMeetings = filteredMeetings.slice(startIndex, startIndex + itemsPerPage);
+
   if (isMobile) {
     return (
       <>
@@ -150,13 +164,15 @@ function AdminMeetingsPage() {
           </section>
           {loading ? (
             <div className="mobile-admin-loading">모임 데이터를 불러오는 중입니다.</div>
-          ) : filteredMeetings.length ? (
+          ) : paginatedMeetings.length ? (
             <section className="mobile-admin-meeting-list">
-              {filteredMeetings.map((meeting) => (
+              {paginatedMeetings.map((meeting) => (
                 <article key={meeting.id} onClick={() => navigate(`/admin/meetings/${meeting.id}`)}>
                   <div>
                     <span>#{meeting.id}</span>
-                    <em>{meeting.status}</em>
+                    <em style={meeting.status === "폐쇄 유예" ? { backgroundColor: "#fef2f2", color: "#ef4444", border: "1px solid #fca5a5" } : undefined}>
+                      {meeting.status}
+                    </em>
                   </div>
                   <strong>{meeting.title}</strong>
                   <dl>
@@ -165,17 +181,92 @@ function AdminMeetingsPage() {
                     <div><dt>날짜</dt><dd>{meeting.date}</dd></div>
                     <div><dt>정원</dt><dd>{meeting.capacity}</dd></div>
                   </dl>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      deleteMeeting(meeting.id);
-                    }}
-                  >
-                    폐쇄 처리
-                  </button>
+                  {meeting.status === "폐쇄 유예" ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        restoreMeeting(meeting.id, meeting.title);
+                      }}
+                      style={{ backgroundColor: "#10b981", color: "#ffffff", border: "1px solid #10b981" }}
+                    >
+                      복구 처리
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        deleteMeeting(meeting.id, meeting.title);
+                      }}
+                    >
+                      폐쇄 처리
+                    </button>
+                  )}
                 </article>
               ))}
+              
+              {totalPages >= 1 && (
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", marginTop: "24px", paddingBottom: "24px" }}>
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #e2e8f0",
+                      backgroundColor: currentPage === 1 ? "#f8fafc" : "#ffffff",
+                      color: currentPage === 1 ? "#94a3b8" : "#475569",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: currentPage === 1 ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    이전
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      style={{
+                        width: "32px",
+                        height: "32px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: "6px",
+                        border: "1px solid",
+                        borderColor: currentPage === pageNum ? "#2563eb" : "#e2e8f0",
+                        backgroundColor: currentPage === pageNum ? "#2563eb" : "#ffffff",
+                        color: currentPage === pageNum ? "#ffffff" : "#475569",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        cursor: "pointer"
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #e2e8f0",
+                      backgroundColor: currentPage === totalPages ? "#f8fafc" : "#ffffff",
+                      color: currentPage === totalPages ? "#94a3b8" : "#475569",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: currentPage === totalPages ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    다음
+                  </button>
+                </div>
+              )}
             </section>
           ) : (
             <div className="mobile-admin-loading">검색 결과 조건에 맞는 모임이 없습니다.</div>
@@ -316,7 +407,7 @@ function AdminMeetingsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredMeetings.map((m) => (
+                paginatedMeetings.map((m) => (
                   <tr 
                     key={m.id} 
                     onClick={() => navigate(`/admin/meetings/${m.id}`)}
@@ -327,7 +418,7 @@ function AdminMeetingsPage() {
                   >
                     <td>#{m.id}</td>
                     <td style={{ fontWeight: 600, maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {m.title}
+                       {m.title}
                     </td>
                     <td>{m.host}</td>
                     <td>
@@ -378,6 +469,71 @@ function AdminMeetingsPage() {
             </tbody>
           </table>
         </div>
+
+        {totalPages >= 1 && (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", marginTop: "24px" }}>
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "1px solid #e2e8f0",
+                backgroundColor: currentPage === 1 ? "#f8fafc" : "#ffffff",
+                color: currentPage === 1 ? "#94a3b8" : "#475569",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                transition: "all 0.15s ease"
+              }}
+            >
+              이전
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "6px",
+                  border: "1px solid",
+                  borderColor: currentPage === pageNum ? "#2563eb" : "#e2e8f0",
+                  backgroundColor: currentPage === pageNum ? "#2563eb" : "#ffffff",
+                  color: currentPage === pageNum ? "#ffffff" : "#475569",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                {pageNum}
+              </button>
+            ))}
+
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "1px solid #e2e8f0",
+                backgroundColor: currentPage === totalPages ? "#f8fafc" : "#ffffff",
+                color: currentPage === totalPages ? "#94a3b8" : "#475569",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                transition: "all 0.15s ease"
+              }}
+            >
+              다음
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
