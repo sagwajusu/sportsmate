@@ -7,6 +7,7 @@ export const adminApi = {
   meetingDetail: (meetingId) => apiClient.get(`/admin/meetings/${meetingId}?_=${Date.now()}`).then((res) => res.data),
   reports: () => apiClient.get("/admin/reports").then((res) => res.data),
   deleteMeeting: (meetingId) => apiClient.delete(`/admin/meetings/${meetingId}`).then((res) => res.data),
+  restoreMeeting: (meetingId) => apiClient.post(`/admin/meetings/${meetingId}/restore`).then((res) => res.data),
   kickMember: (meetingId, userId) => apiClient.delete(`/admin/meetings/${meetingId}/members/${userId}`).then((res) => res.data),
   updateMeeting: (meetingId, data) => apiClient.patch(`/admin/meetings/${meetingId}`, data).then((res) => res.data),
   updateUser: (userId, data) => apiClient.patch(`/admin/users/${userId}`, data).then((res) => res.data)

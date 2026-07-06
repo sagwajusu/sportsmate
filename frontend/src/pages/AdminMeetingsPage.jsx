@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { adminApi } from "../api/adminApi";
-import { Trash2, AlertCircle } from "lucide-react";
+import { Trash2, AlertCircle, RotateCcw } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
 import MobileHeader from "../components/layout/mobile/MobileHeader.jsx";
 
@@ -68,10 +68,30 @@ function AdminMeetingsPage() {
     fetchMeetings();
   }, []);
 
-  const deleteMeeting = (meetingId) => {
-    if (window.confirm(`모임 ID #${meetingId}을(를) 강제 삭제하시겠습니까? (이 작업은 되돌릴 수 없습니다)`)) {
-      setMeetings(prev => prev.filter(m => m.id !== meetingId));
-      alert("모임이 삭제되었습니다.");
+  const deleteMeeting = async (meetingId, title) => {
+    if (window.confirm(`'${title || `ID #${meetingId}`}' 모임을 폐쇄 처리하시겠습니까?\n\n이 모임은 즉시 영구 삭제되지 않고 30일 동안 폐쇄 유예 상태(비활성화)로 보관되며, 이 기간 동안 모든 활동이 정지됩니다. 유예 기간 내에 언제든지 복구할 수 있습니다.`)) {
+      try {
+        await adminApi.deleteMeeting(meetingId);
+        alert("모임이 성공적으로 폐쇄(비활성화) 처리되었습니다.");
+        setMeetings(prev => prev.map(m => m.id === meetingId ? { ...m, status: "폐쇄 유예" } : m));
+      } catch (err) {
+        console.error("Failed to delete meeting", err);
+        alert("모임 폐쇄에 실패했습니다.");
+      }
+    }
+  };
+
+  const restoreMeeting = async (meetingId, title) => {
+    if (window.confirm(`'${title || `ID #${meetingId}`}' 모임을 정상 상태로 복구하시겠습니까?\n\n복구 즉시 모든 방 활동과 채팅방 이용이 다시 활성화됩니다.`)) {
+      try {
+        const res = await adminApi.restoreMeeting(meetingId);
+        alert("모임이 성공적으로 복구되었습니다.");
+        const newStatus = res?.meeting?.status_label || "모집중";
+        setMeetings(prev => prev.map(m => m.id === meetingId ? { ...m, status: newStatus } : m));
+      } catch (err) {
+        console.error("Failed to restore meeting", err);
+        alert("모임 복구에 실패했습니다.");
+      }
     }
   };
 
@@ -300,7 +320,10 @@ function AdminMeetingsPage() {
                   <tr 
                     key={m.id} 
                     onClick={() => navigate(`/admin/meetings/${m.id}`)}
-                    style={{ cursor: "pointer" }}
+                    style={{ 
+                      cursor: "pointer",
+                      backgroundColor: m.status === "폐쇄 유예" ? "#fef2f2" : undefined
+                    }}
                   >
                     <td>#{m.id}</td>
                     <td style={{ fontWeight: 600, maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -317,22 +340,37 @@ function AdminMeetingsPage() {
                     <td>
                       <span 
                         className={`admin-badge admin-badge--${m.status === "모집중" ? "orange" : "gray"}`}
+                        style={m.status === "폐쇄 유예" ? { backgroundColor: "#fef2f2", color: "#ef4444", borderColor: "#fca5a5" } : undefined}
                       >
                         {m.status}
                       </span>
                     </td>
                     <td style={{ textAlign: "center" }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteMeeting(m.id);
-                        }}
-                        className="admin-table-action-btn admin-table-action-btn--outline"
-                        style={{ color: "#ef4444", borderColor: "#fca5a5" }}
-                      >
-                        <Trash2 size={13} style={{ marginRight: "4px" }} /> 폐쇄 처리
-                      </button>
+                      {m.status === "폐쇄 유예" ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            restoreMeeting(m.id, m.title);
+                          }}
+                          className="admin-table-action-btn admin-table-action-btn--outline"
+                          style={{ color: "#10b981", borderColor: "#a7f3d0" }}
+                        >
+                          <RotateCcw size={13} style={{ marginRight: "4px" }} /> 복구 처리
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteMeeting(m.id, m.title);
+                          }}
+                          className="admin-table-action-btn admin-table-action-btn--outline"
+                          style={{ color: "#ef4444", borderColor: "#fca5a5" }}
+                        >
+                          <Trash2 size={13} style={{ marginRight: "4px" }} /> 폐쇄 처리
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

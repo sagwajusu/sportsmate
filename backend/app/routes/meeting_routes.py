@@ -198,6 +198,8 @@ def notices(meeting_id):
 @jwt_required()
 def post_notice(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
+    if meeting.status == "suspended":
+        return jsonify({"message": "폐쇄(비활성화) 처리된 모임입니다."}), 400
     if meeting.host_id != int(get_jwt_identity()):
         return jsonify({"message": "방장만 공지를 작성할 수 있습니다."}), 403
     data = request.get_json() or {}
@@ -232,6 +234,8 @@ def votes(meeting_id):
 @jwt_required()
 def post_vote(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
+    if meeting.status == "suspended":
+        return jsonify({"message": "폐쇄(비활성화) 처리된 모임입니다."}), 400
     user_id = int(get_jwt_identity())
     if meeting.host_id != user_id and not can_manage_meeting_tools(meeting_id, user_id):
         return jsonify({"message": "모임 운영진만 투표를 생성할 수 있습니다."}), 403
@@ -282,6 +286,8 @@ def attendance(meeting_id):
 @jwt_required()
 def check_attendance(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
+    if meeting.status == "suspended":
+        return jsonify({"message": "폐쇄(비활성화) 처리된 모임입니다."}), 400
     current_user_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
     target_user_id = int(data.get("user_id") or current_user_id)

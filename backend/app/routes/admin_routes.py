@@ -209,23 +209,29 @@ def update_meeting(meeting_id):
 def delete_meeting(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
     from app.extensions import db
-    from app.models import Review, Notice, Vote, VoteOption, VoteResponse, Attendance
+    from datetime import datetime
     
-    # Clean up child tables to avoid FK constraint issues
-    Review.query.filter_by(meeting_id=meeting.id).delete()
-    Notice.query.filter_by(meeting_id=meeting.id).delete()
+    meeting.status = "suspended"
+    meeting.suspended_at = datetime.utcnow()
     
-    votes = Vote.query.filter_by(meeting_id=meeting.id).all()
-    for vote in votes:
-        VoteResponse.query.filter_by(vote_id=vote.id).delete()
-        VoteOption.query.filter_by(vote_id=vote.id).delete()
-        db.session.delete(vote)
-        
-    Attendance.query.filter_by(meeting_id=meeting.id).delete()
-    
-    db.session.delete(meeting)
     db.session.commit()
     return jsonify({"success": True})
+
+
+@admin_bp.post("/meetings/<int:meeting_id>/restore")
+def restore_meeting(meeting_id):
+    meeting = Meeting.query.get_or_404(meeting_id)
+    from app.extensions import db
+    
+    if meeting.status != "suspended":
+        return jsonify({"message": "폐쇄 유예 상태가 아닌 모임은 복구할 수 없습니다."}), 400
+        
+    meeting.status = "open"
+    meeting.suspended_at = None
+    meeting.sync_status()
+    
+    db.session.commit()
+    return jsonify({"success": True, "meeting": meeting.to_dict()})
 
 
 @admin_bp.delete("/meetings/<int:meeting_id>/members/<int:user_id>")

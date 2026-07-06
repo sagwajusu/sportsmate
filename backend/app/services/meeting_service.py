@@ -42,7 +42,37 @@ def close_expired_one_time_meetings(now=None):
     return updated
 
 
+def delete_expired_suspended_meetings(now=None):
+    from datetime import timedelta
+    from app.models import Review, Notice, Vote, VoteOption, VoteResponse, Attendance
+    now = now or datetime.utcnow()
+    limit_time = now - timedelta(days=30)
+    
+    expired_meetings = (
+        Meeting.query
+        .filter(Meeting.status == "suspended", Meeting.suspended_at <= limit_time)
+        .all()
+    )
+    
+    for meeting in expired_meetings:
+        Review.query.filter_by(meeting_id=meeting.id).delete()
+        Notice.query.filter_by(meeting_id=meeting.id).delete()
+        
+        votes = Vote.query.filter_by(meeting_id=meeting.id).all()
+        for vote in votes:
+            VoteResponse.query.filter_by(vote_id=vote.id).delete()
+            VoteOption.query.filter_by(vote_id=vote.id).delete()
+            db.session.delete(vote)
+            
+        Attendance.query.filter_by(meeting_id=meeting.id).delete()
+        db.session.delete(meeting)
+        
+    if expired_meetings:
+        db.session.commit()
+
+
 def list_meetings(params, current_user_id=None):
+    delete_expired_suspended_meetings()
     close_expired_one_time_meetings()
     load_options = [
         joinedload(Meeting.host),
@@ -156,7 +186,7 @@ def join_meeting(meeting_id, user_id, join_message=""):
     close_expired_one_time_meetings()
     meeting = Meeting.query.get_or_404(meeting_id)
     applicant = User.query.options(joinedload(User.profile)).get(user_id)
-    applicant_name = applicant.profile.nickname if applicant and applicant.profile and applicant.profile.nickname else (applicant.name if applicant else "신청자")
+    applicant_name = applicant.nickname if applicant and getattr(applicant, "nickname", None) else (applicant.name if applicant else "신청자")
     if meeting.status != "open":
         raise ValueError("모집 중인 모임만 신청할 수 있습니다.")
     if meeting.current_participants >= meeting.max_participants:
@@ -174,6 +204,8 @@ def join_meeting(meeting_id, user_id, join_message=""):
 
 def update_application(meeting_id, applicant_user_id, host_id, status):
     meeting = Meeting.query.get_or_404(meeting_id)
+    if meeting.status == "suspended":
+        raise ValueError("폐쇄(비활성화) 처리된 모임입니다.")
     if meeting.host_id != host_id:
         raise PermissionError("방장만 처리할 수 있습니다.")
     participant = Participant.query.filter_by(meeting_id=meeting.id, user_id=applicant_user_id).first_or_404()
@@ -201,6 +233,9 @@ def update_application(meeting_id, applicant_user_id, host_id, status):
 
 
 def create_review(meeting_id, user_id, data):
+    meeting = Meeting.query.get(meeting_id)
+    if meeting and meeting.status == "suspended":
+        raise PermissionError("폐쇄(비활성화) 처리된 모임입니다.")
     participant = Participant.query.filter_by(meeting_id=meeting_id, user_id=user_id, status="approved").first()
     if not participant:
         raise PermissionError("참여 확정된 사용자만 후기를 작성할 수 있습니다.")
