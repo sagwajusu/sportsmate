@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 
 const SUPABASE_CONFIG_ERROR = "Supabase 환경변수가 설정되지 않아 인증 기능을 사용할 수 없습니다.";
 const SUPABASE_AUTH_PROVIDERS = ["google", "kakao"];
+const AUTH_PROVIDER_ORDER = ["email", "google", "kakao"];
 
 function requireSupabase() {
   if (!isSupabaseConfigured || !supabase) {
@@ -26,9 +27,31 @@ function getAuthRedirectUrl(path = "/auth/callback") {
   return `${window.location.origin}${path}`;
 }
 
+function providerListFromSupabaseUser(user, fallback = {}) {
+  const providers = new Set();
+  const addProvider = (value) => {
+    if (typeof value !== "string") return;
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .forEach((item) => providers.add(item));
+  };
+
+  // 2026-07-06: Supabase에 email+google처럼 여러 identity가 연결된 경우 SportsMate provider도 같은 목록으로 동기화.
+  user?.identities?.forEach((identity) => addProvider(identity?.provider));
+  addProvider(user?.app_metadata?.provider);
+  addProvider(fallback.provider);
+  if (!providers.size && user?.email) providers.add("email");
+
+  return AUTH_PROVIDER_ORDER.filter((provider) => providers.has(provider))
+    .concat([...providers].filter((provider) => !AUTH_PROVIDER_ORDER.includes(provider)))
+    .join(",") || "email";
+}
+
 function metadataFromSupabaseUser(user, fallback = {}) {
   const metadata = user?.user_metadata || {};
-  const provider = user?.app_metadata?.provider || fallback.provider || "email";
+  const provider = providerListFromSupabaseUser(user, fallback);
   const providerId = user?.identities?.[0]?.id || user?.id || "user";
   const email = user?.email || metadata.email || fallback.email || `${providerId}@${provider}.sportsmate.local`;
   const emailName = email.split("@")[0];

@@ -478,10 +478,7 @@ function DesktopMyPage() {
                   />
                   <div>
                     <span>{introDraft.length}/{PROFILE_INTRO_MAX_LENGTH}</span>
-                    <button type="button" onClick={saveIntro} disabled={savingIntro}>
-                      {savingIntro ? <span className="profile-action-spinner" aria-hidden="true" /> : null}
-                      저장
-                    </button>
+                    <button type="button" onClick={saveIntro} disabled={savingIntro}>저장</button>
                     <button type="button" onClick={() => { setIntroDraft(savedIntro); setIntroEdit(false); }}>취소</button>
                   </div>
                 </div>
@@ -577,8 +574,7 @@ function DesktopMyPage() {
             <div className="profile-auth-actions">
               <button className="ghost-btn" type="button" onClick={() => setAuthOpen(false)}>취소</button>
               <button className="primary-small" type="submit" disabled={authChecking}>
-                {authChecking ? <span className="profile-action-spinner" aria-hidden="true" /> : null}
-                확인
+                {authChecking ? "확인 중..." : "확인"}
               </button>
             </div>
           </form>
