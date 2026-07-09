@@ -1,16 +1,57 @@
-import { ArrowLeft, Bot, MessageSquare, Plus, Send, Trash2, User } from "lucide-react";
+import { ArrowLeft, Bot, MessageSquare, Plus, Send, Trash2, User, Edit2, Check, X, CalendarDays, ArrowRight, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { chatbotApi } from "../../../api/chatbotApi";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 
 function formatChatTime(value) {
   if (!value) return "";
   return new Intl.DateTimeFormat("ko-KR", {
+    month: "short",
+    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "Asia/Seoul",
   }).format(new Date(value));
+}
+
+function isMyNearbyRequest(content) {
+  return /내\s*(주변|근처|위치)|현재\s*위치|주변\s*모임/.test(content || "");
+}
+
+function requestBrowserLocation() {
+  if (!navigator.geolocation) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+      }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 },
+    );
+  });
+}
+
+function getMessageActions(message) {
+  if (message.role === "user") return [];
+  if (Array.isArray(message.actions) && message.actions.length) return message.actions;
+  return [];
+}
+
+function ChatbotActionIcon({ type }) {
+  if (type === "schedule") return <CalendarDays size={15} />;
+  if (type === "meeting_search") return <Search size={15} />;
+  return <ArrowRight size={15} />;
+}
+
+function displayMessageContent(content) {
+  return String(content || "")
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("참고한 정보"))
+    .join("\n")
+    .trim();
 }
 
 function MobileChatbotPage() {
@@ -21,8 +62,45 @@ function MobileChatbotPage() {
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [savingSessionId, setSavingSessionId] = useState(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [nextBeforeId, setNextBeforeId] = useState(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   const messagesEndRef = useRef(null);
+
+  const handleStartEdit = (e, session) => {
+    e.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditTitle(session.title);
+  };
+
+  const handleSaveEdit = async (sessionId) => {
+    if (savingSessionId === sessionId) return;
+    if (!editTitle.trim()) {
+      setEditingSessionId(null);
+      return;
+    }
+    setSavingSessionId(sessionId);
+    try {
+      await chatbotApi.updateSession(sessionId, { title: editTitle.trim() });
+      setEditingSessionId(null);
+      await loadSessions();
+    } catch (err) {
+      console.error("세션 제목 수정 실패:", err);
+      setEditingSessionId(null);
+    } finally {
+      setSavingSessionId(null);
+    }
+  };
+
+  const handleCancelEdit = (e) => {
+    if (e) e.stopPropagation();
+    setEditingSessionId(null);
+    setEditTitle("");
+  };
 
   // 1. 세션 목록 로드
   const loadSessions = async (selectFirst = false) => {
@@ -49,10 +127,28 @@ function MobileChatbotPage() {
   const loadMessages = async (sessionId) => {
     if (!sessionId) return;
     try {
-      const data = await chatbotApi.messages(sessionId);
+      const data = await chatbotApi.messages(sessionId, { limit: 40 });
       setMessages(data.items || []);
+      setHasMoreMessages(Boolean(data.has_more));
+      setNextBeforeId(data.next_before_id || null);
     } catch (err) {
       console.error("메시지 조회 실패:", err);
+    }
+  };
+
+  // 2.5 이전 메시지 로드 (페이징)
+  const loadOlderMessages = async () => {
+    if (!currentSessionId || !hasMoreMessages || !nextBeforeId || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const data = await chatbotApi.messages(currentSessionId, { limit: 40, before_id: nextBeforeId });
+      setMessages((current) => [...(data.items || []), ...current]);
+      setHasMoreMessages(Boolean(data.has_more));
+      setNextBeforeId(data.next_before_id || null);
+    } catch (err) {
+      console.error("이전 메시지 로드 실패:", err);
+    } finally {
+      setLoadingOlder(false);
     }
   };
 
@@ -62,6 +158,9 @@ function MobileChatbotPage() {
       const newSession = await chatbotApi.createSession({ title: "새로운 대화" });
       setCurrentSessionId(newSession.id);
       setSidebarOpen(false);
+      setMessages([]);
+      setHasMoreMessages(false);
+      setNextBeforeId(null);
       await loadSessions();
     } catch (err) {
       console.error("새 대화 생성 실패:", err);
@@ -77,7 +176,6 @@ function MobileChatbotPage() {
     setInputText("");
     setSending(true);
 
-    // 낙관적 UI 업데이트 (사용자 말풍선 바로 띄우기)
     const tempUserMsg = {
       id: Date.now(),
       role: "user",
@@ -87,18 +185,19 @@ function MobileChatbotPage() {
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const res = await chatbotApi.sendMessage(currentSessionId, { content: userText });
+      const location = isMyNearbyRequest(userText) ? await requestBrowserLocation() : null;
+      const res = await chatbotApi.sendMessage(currentSessionId, { content: userText, location });
       
-      // 실제 서버 응답으로 메시지 리스트 덮어쓰기 또는 봇 말풍선 추가
       if (res.bot_message) {
         setMessages((prev) => {
-          // 낙관적으로 추가했던 tempUserMsg를 실제 서버에서 생성된 user_message로 바꾸고 bot_message 추가
           const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
-          return [...filtered, res.user_message, res.bot_message];
+          const botMsg = {
+            ...res.bot_message,
+            actions: res.actions || res.bot_message.actions || []
+          };
+          return [...filtered, res.user_message, botMsg];
         });
       }
-
-      // 첫 메시지 전송 시 세션 제목을 메시지 내용 요약으로 업데이트하기 위해 세션 목록 갱신
       await loadSessions();
     } catch (err) {
       console.error("메시지 전송 실패:", err);
@@ -150,6 +249,13 @@ function MobileChatbotPage() {
   const currentSession = sessions.find((s) => s.id === currentSessionId);
   const sessionTitle = currentSession ? currentSession.title : "AI 챗봇";
 
+  const quickPrompts = [
+    "내 주변 모임 알려줘",
+    "내 일정 알려줘",
+    "나한테 맞는 모임 추천해줘",
+    "한강 근처 러닝 모임 찾아줘",
+  ];
+
   return (
     <div className="mobile-chatbot-container">
       {/* 모바일 헤더 */}
@@ -175,15 +281,28 @@ function MobileChatbotPage() {
         {messages.length === 0 ? (
           <div className="mobile-chatbot-welcome">
             <div className="mobile-chatbot-welcome-icon">
-              <Bot size={40} />
+              <img src="/img/sportsmate_bot.png" alt="sportsmate bot" />
             </div>
             <h3>스포츠메이트 AI 챗봇</h3>
             <p>스포츠 모임 정보, 매칭, 장소 추천 등 궁금한 점을 질문해보세요!</p>
+            <div className="mobile-chatbot-quick-prompts">
+              {quickPrompts.map((prompt) => (
+                <button key={prompt} type="button" onClick={() => setInputText(prompt)}>
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="mobile-chatbot-message-list">
+            {hasMoreMessages && messages.length ? (
+              <button className="mobile-chatbot-load-more" type="button" onClick={loadOlderMessages} disabled={loadingOlder}>
+                {loadingOlder ? "불러오는 중..." : "이전 대화 더 보기"}
+              </button>
+            ) : null}
             {messages.map((msg) => {
               const isUser = msg.role === "user";
+              const actions = getMessageActions(msg);
               return (
                 <div
                   key={msg.id}
@@ -193,13 +312,23 @@ function MobileChatbotPage() {
                 >
                   {!isUser && (
                     <div className="mobile-chatbot-bubble-avatar">
-                      <Bot size={16} />
+                      <img src="/img/sportsmate_bot.png" alt="sportsmate bot" />
                     </div>
                   )}
                   <div className="mobile-chatbot-bubble-wrapper">
                     {!isUser && <span className="mobile-chatbot-bubble-name">AI 비서</span>}
                     <div className="mobile-chatbot-bubble-bubble">
-                      <p>{msg.content}</p>
+                      <p>{displayMessageContent(msg.content)}</p>
+                      {!isUser && actions.length ? (
+                        <div className="mobile-chatbot-message-actions">
+                          {actions.map((action) => (
+                            <Link key={`${msg.id}-${action.type}-${action.href}`} to={action.href} className="mobile-chatbot-action-btn">
+                              <ChatbotActionIcon type={action.type} />
+                              <span>{action.label}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                     <time className="mobile-chatbot-bubble-time">
                       {formatChatTime(msg.created_at)}
@@ -255,19 +384,66 @@ function MobileChatbotPage() {
                   }}
                 >
                   <MessageSquare size={16} />
-                  <span className="mobile-chatbot-sidebar-item-title">
-                    {s.messages && s.messages.length > 0
-                      ? s.messages[0].content.slice(0, 16)
-                      : s.title}
-                  </span>
-                  <button
-                    type="button"
-                    className="mobile-chatbot-sidebar-item-delete"
-                    onClick={(e) => handleDeleteSession(e, s.id)}
-                    aria-label="삭제"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {editingSessionId === s.id ? (
+                    <>
+                      <input
+                        type="text"
+                        className="mobile-chatbot-sidebar-item-input"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSaveEdit(s.id);
+                          } else if (e.key === "Escape") {
+                            handleCancelEdit();
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="mobile-chatbot-sidebar-item-actions" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="mobile-chatbot-sidebar-item-save"
+                          onClick={() => handleSaveEdit(s.id)}
+                          aria-label="저장"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="mobile-chatbot-sidebar-item-cancel"
+                          onClick={handleCancelEdit}
+                          aria-label="취소"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="mobile-chatbot-sidebar-item-title">
+                        {s.title || "대화방"}
+                      </span>
+                      <button
+                        type="button"
+                        className="mobile-chatbot-sidebar-item-edit"
+                        onClick={(e) => handleStartEdit(e, s)}
+                        aria-label="이름 수정"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className="mobile-chatbot-sidebar-item-delete"
+                        onClick={(e) => handleDeleteSession(e, s.id)}
+                        aria-label="삭제"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

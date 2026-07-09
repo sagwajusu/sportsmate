@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models import ChatMessage, ChatMessageRead, ChatRoom, DirectChatMessage, DirectChatRoom, Meeting, Participant, Sport, User
 from app.services.notification_service import create_notification, send_web_push
+from app.utils.timezone import kst_now
 
 
 def _room_options(include_messages=False):
@@ -139,6 +140,9 @@ def send_message(room_id, user_id, data):
     db.session.commit()
     for participant in participants:
         if participant.user_id != user_id:
+            from app.utils.mute_store import is_muted
+            if is_muted(participant.user_id, "meeting", room.id):
+                continue
             try:
                 send_web_push(participant.user_id, f"{meeting_title} 새 채팅", f"{sender_name}: {preview}", f"/chats/{room.id}")
             except Exception as error:
@@ -238,7 +242,7 @@ def send_direct_message(room_id, user_id, data):
         location_longitude=location_longitude,
         location_label=location_label,
     )
-    room.updated_at = datetime.utcnow()
+    room.updated_at = kst_now()
     db.session.add(message)
     db.session.commit()
     return message

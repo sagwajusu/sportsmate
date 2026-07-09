@@ -1,4 +1,4 @@
-﻿import {
+import {
   BarChart3,
   CalendarDays,
   Camera,
@@ -11,15 +11,20 @@
   MapPin,
   Megaphone,
   MessageCircle,
+  Navigation,
   Pin,
   Plus,
   Reply,
+  Route,
   Search,
   Send,
   Settings,
   UsersRound,
   Vote,
-  X
+  X,
+  Menu,
+  Bell,
+  BellOff
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -32,6 +37,9 @@ import { isSupabaseConfigured, supabase } from "../../../api/supabaseClient";
 import { voteApi } from "../../../api/voteApi";
 import { useAuth } from "../../../contexts/AuthContext.jsx";
 import { useAsync } from "../../../hooks/useAsync";
+
+const NAVER_MAP_SCRIPT_ID = "naver-map-sdk";
+let naverMapClientIdPromise;
 
 function formatMessageTime(value) {
   if (!value) return "";
@@ -132,7 +140,48 @@ function mapUrl(message) {
   const lat = message.location_latitude;
   const lng = message.location_longitude;
   if (lat == null || lng == null) return "";
-  return `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`;
+  const label = encodeURIComponent(message.location_label || "공유한 위치");
+  return `https://map.naver.com/p/search/${label}?c=${lng},${lat},16,0,0,0,dh`;
+}
+
+function naverDirectionsUrl(origin, destination) {
+  const originPart = `s:${origin.longitude},${origin.latitude},${encodeURIComponent(origin.label || "현재 위치")}`;
+  const destinationPart = `e:${destination.longitude},${destination.latitude},${encodeURIComponent(destination.label || "공유한 위치")}`;
+  return `https://map.naver.com/p/directions/${originPart}/${destinationPart}/-/transit`;
+}
+
+function getNaverMapClientId() {
+  if (!naverMapClientIdPromise) {
+    naverMapClientIdPromise = locationApi.mapConfig()
+      .then((data) => data.naver_dynamic_map_client_id || "")
+      .catch(() => "");
+  }
+  return naverMapClientIdPromise;
+}
+
+function loadNaverMapScript(clientId) {
+  if (!clientId) return Promise.reject(new Error("missing naver map client id"));
+  if (window.naver?.maps) return Promise.resolve(window.naver.maps);
+  if (window.__sportsmateNaverMapPromise) return window.__sportsmateNaverMapPromise;
+
+  window.__sportsmateNaverMapPromise = new Promise((resolve, reject) => {
+    const existing = document.getElementById(NAVER_MAP_SCRIPT_ID);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.naver.maps), { once: true });
+      existing.addEventListener("error", reject, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = NAVER_MAP_SCRIPT_ID;
+    script.async = true;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}`;
+    script.onload = () => resolve(window.naver.maps);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+
+  return window.__sportsmateNaverMapPromise;
 }
 
 function readImageAsDataUrl(file) {
@@ -142,6 +191,117 @@ function readImageAsDataUrl(file) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+function ChatLocationMessage({ message }) {
+  const mapElementRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const [mapStatus, setMapStatus] = useState("idle");
+  const [directionStatus, setDirectionStatus] = useState("");
+
+  const latitude = Number(message.location_latitude);
+  const longitude = Number(message.location_longitude);
+  const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
+  const label = message.location_label || "공유한 위치";
+  const naverUrl = mapUrl(message);
+
+  useEffect(() => {
+    if (!hasCoordinates) return;
+    let disposed = false;
+    setMapStatus("loading");
+
+    getNaverMapClientId()
+      .then((clientId) => loadNaverMapScript(clientId))
+      .then((maps) => {
+        if (disposed || !mapElementRef.current) return;
+        const position = new maps.LatLng(latitude, longitude);
+        mapRef.current = new maps.Map(mapElementRef.current, {
+          center: position,
+          zoom: 16,
+          draggable: false,
+          scrollWheel: false,
+          disableDoubleClickZoom: true,
+          mapDataControl: false,
+          scaleControl: false,
+          zoomControl: false
+        });
+        markerRef.current = new maps.Marker({ map: mapRef.current, position });
+        setMapStatus("ready");
+      })
+      .catch(() => setMapStatus("fallback"));
+
+    return () => {
+      disposed = true;
+      if (markerRef.current) markerRef.current.setMap(null);
+      markerRef.current = null;
+      mapRef.current = null;
+    };
+  }, [hasCoordinates, latitude, longitude]);
+
+  const openDirections = () => {
+    if (!hasCoordinates) return;
+    if (!navigator.geolocation) {
+      window.open(naverUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    setDirectionStatus("현재 위치 확인 중");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setDirectionStatus("");
+        window.open(
+          naverDirectionsUrl(
+            {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              label: "현재 위치"
+            },
+            { latitude, longitude, label }
+          ),
+          "_blank",
+          "noopener,noreferrer"
+        );
+      },
+      () => {
+        setDirectionStatus("위치 권한 필요");
+        window.open(naverUrl, "_blank", "noopener,noreferrer");
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  };
+
+  return (
+    <article className="talk-location-message">
+      <a className="talk-location-message__map" href={naverUrl} target="_blank" rel="noreferrer" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="talk-location-message__canvas" ref={mapElementRef}>
+          {mapStatus !== "ready" ? (
+            <span>
+              <MapPin size={24} />
+              {mapStatus === "loading" ? "네이버 지도 불러오는 중" : "네이버 지도에서 보기"}
+            </span>
+          ) : null}
+        </div>
+      </a>
+      <div className="talk-location-message__body">
+        <MapPin size={18} />
+        <span>
+          <strong>{label}</strong>
+          <small>{hasCoordinates ? "네이버 지도에서 위치 확인" : "위치 정보 없음"}</small>
+        </span>
+      </div>
+      <div className="talk-location-message__actions">
+        <a href={naverUrl} target="_blank" rel="noreferrer" onPointerDown={(event) => event.stopPropagation()}>
+          <Navigation size={14} />
+          네이버 지도
+        </a>
+        <button type="button" onClick={openDirections} onPointerDown={(event) => event.stopPropagation()} disabled={!hasCoordinates}>
+          <Route size={14} />
+          {directionStatus || "길찾기"}
+        </button>
+      </div>
+    </article>
+  );
 }
 
 function padNumber(value) {
@@ -284,6 +444,8 @@ function DesktopChatRoom() {
   const [searchQuery, setSearchQuery] = useState("");
   const [talkInfoOpen, setTalkInfoOpen] = useState(false);
   const [memberPanelOpen, setMemberPanelOpen] = useState(false);
+  const [menuExpanded, setMenuExpanded] = useState(false);
+  const [mutedRooms, setMutedRooms] = useState([]);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [actionNotice, setActionNotice] = useState("");
   const [leavingRoom, setLeavingRoom] = useState(false);
@@ -338,6 +500,28 @@ function DesktopChatRoom() {
   const directMessages = useAsync(() => directRoomId ? chatApi.directMessages(directRoomId) : Promise.resolve(null), [directRoomId, directRefreshKey]);
   const rooms = useAsync(() => chatApi.rooms(), [roomRefreshKey]);
   const directRooms = useAsync(() => chatApi.directRooms(), [directRoomRefreshKey]);
+
+  useEffect(() => {
+    chatApi.mutedRooms()
+      .then((res) => setMutedRooms(res.muted_rooms || []))
+      .catch((err) => console.error("Failed to load muted rooms", err));
+  }, [roomRefreshKey, directRoomRefreshKey]);
+
+  const toggleMute = async (roomId, roomType) => {
+    const isCurrentlyMuted = mutedRooms.some(r => String(r.room_id) === String(roomId) && r.room_type === roomType);
+    try {
+      if (isCurrentlyMuted) {
+        await chatApi.unmute(roomId, roomType);
+        setMutedRooms((prev) => prev.filter(r => !(String(r.room_id) === String(roomId) && r.room_type === roomType)));
+      } else {
+        await chatApi.mute(roomId, roomType);
+        setMutedRooms((prev) => [...prev, { room_id: roomId, room_type: roomType }]);
+      }
+    } catch (err) {
+      console.error("Mute toggle failed", err);
+      alert("알림 설정 변경에 실패했습니다.");
+    }
+  };
   const activeMessages = isDirectChat ? directMessages : messages;
   const room = activeMessages.data?.room;
   const directOtherUser = isDirectChat ? room?.other_user : null;
@@ -1120,26 +1304,47 @@ function DesktopChatRoom() {
                 const itemMeeting = item.meeting || {};
                 return (
                   <div key={item.id} className={`proto-talk-room-item ${String(item.id) === String(chatRoomId) ? "selected" : ""}`}>
-                    <Link to={`/chats/${item.id}`}>
-                      {itemMeeting.cover_image_url ? <img src={itemMeeting.cover_image_url} alt="" /> : <div className="talk-room-fallback"><MessageCircle size={20} /></div>}
-                      <span>
-                        <b>{itemMeeting.title || "모임 채팅방"}</b>
-                        <small>{itemMeeting.location_name || "장소 미정"} · {itemMeeting.current_participants || 0}/{itemMeeting.max_participants || 0}명</small>
-                      </span>
-                    <em>{formatMessageTime(item.last_message?.created_at) || "방금"}</em>
-                    {Number(item.unread_count || 0) > 0 ? <i>{item.unread_count}</i> : null}
-                  </Link>
-                    <button
-                      className="talk-room-leave-btn"
-                      type="button"
-                      onClick={() => {
-                        setLeaveTargetRoom(item);
-                        setLeaveConfirmOpen(true);
-                      }}
-                      aria-label="채팅방 나가기"
-                    >
-                      <LogOut size={14} />
-                    </button>
+                    {(() => {
+                      const isMuted = mutedRooms.some(r => String(r.room_id) === String(item.id) && r.room_type === "meeting");
+                      return (
+                        <>
+                          <Link to={`/chats/${item.id}`}>
+                            {itemMeeting.cover_image_url ? <img src={itemMeeting.cover_image_url} alt="" /> : <div className="talk-room-fallback"><MessageCircle size={20} /></div>}
+                            <span>
+                              <b>{itemMeeting.title || "모임 채팅방"}</b>
+                              <small>{itemMeeting.location_name || "장소 미정"} · {itemMeeting.current_participants || 0}/{itemMeeting.max_participants || 0}명</small>
+                            </span>
+                            <em>
+                              {isMuted ? <BellOff size={11} style={{ marginRight: '3px', color: '#94a3b8', verticalAlign: 'middle' }} /> : null}
+                              {formatMessageTime(item.last_message?.created_at) || "방금"}
+                            </em>
+                            {Number(item.unread_count || 0) > 0 ? <i>{item.unread_count}</i> : null}
+                          </Link>
+                          <div className="talk-room-item-hover-actions">
+                            <button
+                              className={`talk-room-mute-btn ${isMuted ? "muted" : ""}`}
+                              type="button"
+                              onClick={() => toggleMute(item.id, "meeting")}
+                              title={isMuted ? "알림 켜기" : "알림 끄기"}
+                            >
+                              {isMuted ? <BellOff size={13} /> : <Bell size={13} />}
+                            </button>
+                            <button
+                              className="talk-room-leave-btn-new"
+                              type="button"
+                              onClick={() => {
+                                setLeaveTargetRoom(item);
+                                setLeaveConfirmOpen(true);
+                              }}
+                              aria-label="채팅방 나가기"
+                              title="채팅방 나가기"
+                            >
+                              <LogOut size={13} />
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -1150,14 +1355,34 @@ function DesktopChatRoom() {
                 const otherUser = item.other_user || {};
                 return (
                   <div key={item.id} className={`proto-talk-room-item ${String(item.id) === String(directRoomId) ? "selected" : ""}`}>
-                    <Link to={`/chats/direct/${item.id}`}>
-                      {otherUser.profile_image_url ? <img src={otherUser.profile_image_url} alt="" /> : <div className="talk-room-fallback"><UsersRound size={20} /></div>}
-                      <span>
-                        <b>{senderLabel(otherUser)}</b>
-                        <small>{item.last_message?.content || "아직 대화가 없습니다."}</small>
-                      </span>
-                      <em>{formatMessageTime(item.last_message?.created_at || item.updated_at || item.created_at) || "방금"}</em>
-                    </Link>
+                    {(() => {
+                      const isMuted = mutedRooms.some(r => String(r.room_id) === String(item.id) && r.room_type === "direct");
+                      return (
+                        <>
+                          <Link to={`/chats/direct/${item.id}`}>
+                            {otherUser.profile_image_url ? <img src={otherUser.profile_image_url} alt="" /> : <div className="talk-room-fallback"><UsersRound size={20} /></div>}
+                            <span>
+                              <b>{senderLabel(otherUser)}</b>
+                              <small>{item.last_message?.content || "아직 대화가 없습니다."}</small>
+                            </span>
+                            <em>
+                              {isMuted ? <BellOff size={11} style={{ marginRight: '3px', color: '#94a3b8', verticalAlign: 'middle' }} /> : null}
+                              {formatMessageTime(item.last_message?.created_at || item.updated_at || item.created_at) || "방금"}
+                            </em>
+                          </Link>
+                          <div className="talk-room-item-hover-actions">
+                            <button
+                              className={`talk-room-mute-btn ${isMuted ? "muted" : ""}`}
+                              type="button"
+                              onClick={() => toggleMute(item.id, "direct")}
+                              title={isMuted ? "알림 켜기" : "알림 끄기"}
+                            >
+                              {isMuted ? <BellOff size={13} /> : <Bell size={13} />}
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -1186,24 +1411,48 @@ function DesktopChatRoom() {
                     : `${meeting?.location_name || "장소 미정"} · ${meeting?.current_participants || 0}/${meeting?.max_participants || 0}명`}
                 </small>
               </div>
-              <span>
+              <span className="talk-room-actions-container">
                 {!isDirectChat ? (
-                  <>
-                    <button className="talk-tool-btn" type="button" onClick={() => setTalkInfoOpen((value) => !value)}>
-                      <ClipboardList size={15} />
-                      <b>공지/일정</b>
+                  <div className={`chat-accordion-menu ${menuExpanded ? "expanded" : ""}`}>
+                    <div className="chat-accordion-content">
+                      <button className="talk-tool-btn" type="button" onClick={() => { setTalkInfoOpen((v) => !v); setMemberPanelOpen(false); }}>
+                        <ClipboardList size={15} />
+                        <b>공지/일정</b>
+                      </button>
+                      <button className="talk-tool-btn" type="button" onClick={() => { openVoteList(); setTalkInfoOpen(false); setMemberPanelOpen(false); }}>
+                        <Vote size={15} />
+                        <b>투표</b>
+                      </button>
+                      <button className="talk-tool-btn" type="button" onClick={() => { setMemberPanelOpen((v) => !v); setTalkInfoOpen(false); }}>
+                        <UsersRound size={15} />
+                        <b>멤버</b>
+                      </button>
+                      {canManageRoom && meeting?.id ? (
+                        <>
+                          <Link className="talk-tool-btn is-gray-text" to={`/host/meetings/${meeting.id}`}>
+                            <Settings size={15} />
+                            <b>방 관리</b>
+                          </Link>
+                          {isRoomHost ? (
+                            <button className="talk-tool-btn is-danger-text" type="button" onClick={closeMeetingRoom}>
+                              <LogOut size={15} />
+                              <b>채팅방 종료</b>
+                            </button>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                    <button 
+                      className={`talk-icon-btn menu-toggle-btn ${menuExpanded ? "active" : ""}`} 
+                      type="button" 
+                      onClick={() => setMenuExpanded((v) => !v)}
+                      title="메뉴"
+                    >
+                      {menuExpanded ? <X size={15} /> : <Menu size={15} />}
                     </button>
-                    <button className="talk-tool-btn" type="button" onClick={openVoteList}>
-                      <Vote size={15} />
-                      <b>투표</b>
-                    </button>
-                    <button className="talk-tool-btn" type="button" onClick={() => setMemberPanelOpen((value) => !value)}>
-                      <UsersRound size={15} />
-                      <b>멤버</b>
-                    </button>
-                  </>
+                  </div>
                 ) : null}
-                <button className="talk-icon-btn" type="button" onClick={() => setTalkSearchOpen((value) => !value)} aria-label="대화 검색">
+                <button className="talk-icon-btn" type="button" onClick={() => setTalkSearchOpen((v) => !v)} aria-label="대화 검색">
                   <Search size={15} />
                 </button>
                 <Link className="talk-close-btn" to="/chats" aria-label="채팅 닫기"><X size={15} /></Link>
@@ -1233,22 +1482,10 @@ function DesktopChatRoom() {
                 <span>내 모임 일정 보기</span>
               </Link>
               {canManageRoom && meeting?.id ? (
-                <>
-                  <button type="button" onClick={() => openNoticeForm()}>
-                    <Pin size={15} />
-                    <span>공지 작성</span>
-                  </button>
-                  {isRoomHost ? (
-                    <button className="is-danger" type="button" onClick={closeMeetingRoom}>
-                      <LogOut size={15} />
-                      <span>채팅방 종료</span>
-                    </button>
-                  ) : null}
-                  <Link to={`/host/meetings/${meeting.id}`}>
-                    <Settings size={15} />
-                    <span>방 관리</span>
-                  </Link>
-                </>
+                <button type="button" onClick={() => openNoticeForm()}>
+                  <Pin size={15} />
+                  <span>공지 작성</span>
+                </button>
               ) : null}
             </div> : null}
 
@@ -1340,14 +1577,8 @@ function DesktopChatRoom() {
                               {message.attachment_name ? <figcaption>{message.attachment_name}</figcaption> : null}
                             </figure>
                           ) : message.message_type === "location" ? (
-                            <a className="talk-location-message" href={mapUrl(message)} target="_blank" rel="noreferrer">
-                              <MapPin size={18} />
-                              <span>
-                                <strong>{message.location_label || "공유한 위치"}</strong>
-                                <small>{[message.location_latitude, message.location_longitude].filter((value) => value != null).join(", ")}</small>
-                              </span>
-                            </a>
-                        ) : (
+                            <ChatLocationMessage message={message} />
+                          ) : (
                             <p>{isSystemMessage(message) ? systemMessageText(message) : message.content}</p>
                           )}
                         </div>

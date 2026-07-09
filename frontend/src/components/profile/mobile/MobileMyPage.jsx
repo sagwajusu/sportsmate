@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarCheck, Check, Dumbbell, Footprints, MapPin, MessageCircle, Pencil, ShieldCheck, Star, Trophy, X, ChevronDown, ChevronUp } from "lucide-react";
+import { CalendarCheck, Check, Dumbbell, Footprints, MapPin, MessageCircle, Pencil, ShieldCheck, Star, Trophy, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import MobileHeader from "../../layout/mobile/MobileHeader.jsx";
 import Button from "../../common/Button.jsx";
@@ -14,6 +14,12 @@ const levelLabels = {
   advanced: "상급"
 };
 
+function getSportTagLabel(sport, preferredSportLevels) {
+  const levelKey = preferredSportLevels?.[sport];
+  const levelName = levelLabels[levelKey];
+  return levelName ? `${sport}:${levelName}` : sport;
+}
+
 function splitPreferredSports(value) {
   return (value || "")
     .split(",")
@@ -23,7 +29,7 @@ function splitPreferredSports(value) {
 
 function formatAttendanceRate(value) {
   const rate = Number(value || 0);
-  return rate > 0 ? `${Math.round(rate)}%` : "준비중";
+  return `${Math.round(rate)}%`;
 }
 
 function formatRating(value) {
@@ -110,13 +116,23 @@ function MobileMyPage() {
   const monthBase = useMemo(() => new Date(), []);
   const [selectedScheduleKey, setSelectedScheduleKey] = useState("");
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const calendarCells = useMemo(() => buildMonthCells(monthBase, scheduleItems), [monthBase, scheduleItems]);
   const activeScheduleKey = selectedScheduleKey || dateKey(new Date());
   const selectedSchedules = scheduleItems.filter((item) => dateKey(item.start_at) === activeScheduleKey);
 
   const handleLogout = async () => {
-    await logout();
-    navigate("/login", { replace: true });
+    setIsLoggingOut(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      await logout();
+      sessionStorage.setItem("sportsmate_flash", "로그아웃 되었습니다.");
+      navigate("/login", { replace: true });
+    } catch (err) {
+      console.error("로그아웃 실패:", err);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const saveIntro = async () => {
@@ -153,46 +169,62 @@ function MobileMyPage() {
     <>
       <MobileHeader title="내 정보" />
       <section className="profile-card profile-card--stitch">
-        <img src={user?.profile_image_url || "/images/logo.png"} alt="프로필" />
-        <div>
-          <strong>{user.nickname || user.name || "스포츠메이트"}</strong>
-          <p>{exerciseLevel} · {profile.region || "활동 지역 미설정"}</p>
-          <div className="mobile-profile-intro-slot">
-            {introEdit ? (
-              <div className="mobile-profile-intro-edit">
-                <input
-                  value={introDraft}
-                  maxLength={30}
-                  onChange={(event) => setIntroDraft(event.target.value)}
-                  placeholder="상태메시지를 입력하세요"
-                />
-                <span>{introDraft.length}/30</span>
-                <button type="button" onClick={saveIntro} disabled={introSaving} aria-label="상태메시지 저장">
-                  <Check size={14} />
+        <div className="profile-card__main-row">
+          <img src={user?.profile_image_url || "/images/logo.png"} alt="프로필" />
+          <div className="profile-card__info">
+            <strong className="profile-card__nickname-row">
+              <span className="profile-card__nickname">{user.nickname || user.name || "스포츠메이트"}</span>
+              {user?.user_tag && <span className="profile-card__user-tag">#{user.user_tag}</span>}
+            </strong>
+            
+            <div className="mobile-profile-intro-slot">
+              {introEdit ? (
+                <div className="mobile-profile-intro-edit">
+                  <input
+                    value={introDraft}
+                    maxLength={30}
+                    onChange={(event) => setIntroDraft(event.target.value)}
+                    placeholder="상태메시지를 입력하세요"
+                    autoFocus
+                  />
+                  <span className="mobile-profile-intro-char-count">{introDraft.length}/30</span>
+                  <div className="mobile-profile-intro-edit-actions">
+                    <button type="button" onClick={saveIntro} disabled={introSaving} aria-label="상태메시지 저장">
+                      <Check size={13} />
+                    </button>
+                    <button type="button" onClick={() => { setIntroDraft(initialIntro); setIntroEdit(false); }} aria-label="상태메시지 취소">
+                      <X size={13} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button className="mobile-profile-intro-quick" type="button" onClick={() => setIntroEdit(true)}>
+                  <span className="mobile-profile-intro-text">{initialIntro || "상태메시지 입력"}</span>
+                  <Pencil size={12} />
                 </button>
-                <button type="button" onClick={() => { setIntroDraft(initialIntro); setIntroEdit(false); }} aria-label="상태메시지 취소">
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <button className="mobile-profile-intro-quick" type="button" onClick={() => setIntroEdit(true)}>
-                <span>{initialIntro || "상태메시지 입력"}</span>
-                <Pencil size={13} />
-              </button>
-            )}
-            {introMessage ? <em>{introMessage}</em> : null}
-          </div>
-          <div className="profile-sport-tags" aria-label="선호 종목">
-            {preferredSports.length ? preferredSports.slice(0, 4).map((sport) => (
-              <span key={sport}><Dumbbell size={16} />{sport}</span>
-            )) : (
-              <span><Footprints size={16} />선호 종목 설정 전</span>
-            )}
+              )}
+              {introMessage ? <em className="mobile-profile-intro-error">{introMessage}</em> : null}
+            </div>
+
+            <p className="profile-card__meta-text">{profile.region || "활동 지역 미설정"} / {exerciseLevel}</p>
           </div>
         </div>
-        <Link className="profile-edit-shortcut" to="/mypage/profile" aria-label="프로필 수정">
-          <Pencil size={17} />
-        </Link>
+        
+        <div className="profile-card__divider" />
+
+        <div className="profile-card__sports-grid" aria-label="선호 종목">
+          {preferredSports.length ? preferredSports.slice(0, 6).map((sport) => (
+            <div key={sport} className="profile-card__sport-grid-item">
+              <Dumbbell size={14} />
+              <span>{getSportTagLabel(sport, profile.preferred_sport_levels)}</span>
+            </div>
+          )) : (
+            <div className="profile-card__sport-grid-empty">
+              <Footprints size={14} />
+              <span>선호 종목 설정 전</span>
+            </div>
+          )}
+        </div>
       </section>
       <div className="stats-grid">
         <span><Trophy size={18} /><small>참여 모임</small><strong>{joinedCount}회</strong></span>
@@ -267,7 +299,19 @@ function MobileMyPage() {
         <Link to="/meetings">관심 모임</Link>
         <Link to="/mypage/reviews">내 후기 <span>{reviewCount}</span></Link>
       </div>
-      <Button variant="secondary" onClick={handleLogout}>로그아웃</Button>
+      <div className="mobile-mypage-logout-wrapper">
+        <Button variant="danger" className="mobile-mypage-logout-btn" onClick={handleLogout}>로그아웃</Button>
+      </div>
+
+      {/* 로그아웃 대기 상태 모달 팝업 */}
+      {isLoggingOut && (
+        <div className="mobile-logout-modal-overlay">
+          <div className="mobile-logout-modal-content">
+            <Loader2 size={36} className="mobile-logout-spinner" />
+            <p>로그아웃 중입니다...</p>
+          </div>
+        </div>
+      )}
     </>
   );
 }
