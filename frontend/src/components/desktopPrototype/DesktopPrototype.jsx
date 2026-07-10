@@ -47,6 +47,7 @@ import { meetingApi } from "../../api/meetingApi";
 import { sportApi } from "../../api/sportApi";
 import { useAsync } from "../../hooks/useAsync";
 import { formatDateTime, formatMeetingType } from "../../utils/formatters";
+import { getSportVisualAsset, HOME_SPORT_SHORTCUT_LABELS } from "../../utils/sportVisualAssets";
 
 const joinedStates = new Set(["host", "joined"]);
 
@@ -391,17 +392,10 @@ function HomeContent() {
   const [carouselDragging, setCarouselDragging] = useState(false);
   const sportItems = sports.data?.items || [];
   const homeSportShortcuts = useMemo(() => {
-    const definitions = [
-      { icon: CircleDot, label: "농구" },
-      { icon: Goal, label: "축구" },
-      { icon: Footprints, label: "러닝" },
-      { icon: Dumbbell, label: "헬스" },
-      { icon: Mountain, label: "등산" },
-      { icon: Bike, label: "자전거" }
-    ];
-    return definitions.map((item) => ({
-      ...item,
-      sport: sportItems.find((sport) => sport.name === item.label)
+    return HOME_SPORT_SHORTCUT_LABELS.map((label) => ({
+      label,
+      asset: getSportVisualAsset(label),
+      sport: sportItems.find((sport) => sport.name === label)
     }));
   }, [sportItems]);
 
@@ -481,11 +475,15 @@ function HomeContent() {
 
       <section className="home-categories-wrap">
         <div className="home-categories">
-          {homeSportShortcuts.map(({ icon: Icon, label, sport }) => {
+          {homeSportShortcuts.map(({ asset, label, sport }) => {
             return (
               <Link key={label} to={`/meetings?sport=${sport?.id || encodeURIComponent(label)}`}>
-                <Icon size={24} />
-                <span>{label}</span>
+                {asset.thumbnail && <img className="home-category-card__image" src={asset.thumbnail} alt="" aria-hidden="true" />}
+                <span className="home-category-card__hover">
+                  {asset.icon && <img className="home-category-card__icon" src={asset.icon} alt="" aria-hidden="true" />}
+                  <strong>{label}</strong>
+                  <em>관심 종목 보기</em>
+                </span>
               </Link>
             );
           })}
