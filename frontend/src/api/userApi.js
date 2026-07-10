@@ -8,5 +8,7 @@ export const userApi = {
   verifyPassword: (payload) => apiClient.post("/users/me/verify-password", payload).then((res) => res.data),
   get: (id) => apiClient.get(`/users/${id}`).then((res) => res.data),
   myMeetings: () => apiClient.get("/users/me/meetings").then((res) => res.data),
-  myReviews: () => apiClient.get("/users/me/reviews").then((res) => res.data)
+  myReviews: () => apiClient.get("/users/me/reviews").then((res) => res.data),
+  updateReview: (id, payload) => apiClient.patch(`/users/me/reviews/${id}`, payload).then((res) => res.data),
+  deleteReview: (id) => apiClient.delete(`/users/me/reviews/${id}`).then((res) => res.data)
 };

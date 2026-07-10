@@ -346,7 +346,18 @@ def create_review(meeting_id, user_id, data):
     participant = Participant.query.filter_by(meeting_id=meeting_id, user_id=user_id, status="approved").first()
     if not participant:
         raise PermissionError("참여 확정된 사용자만 후기를 작성할 수 있습니다.")
-    review = Review(meeting_id=meeting_id, reviewer_id=user_id, rating=data["rating"], content=data["content"])
+        
+    reviewee_id = data.get("reviewee_id")
+    if not reviewee_id:
+        reviewee_id = meeting.host_id
+        
+    review = Review(
+        meeting_id=meeting_id, 
+        reviewer_id=user_id, 
+        reviewee_id=reviewee_id, 
+        rating=data["rating"], 
+        content=data["content"]
+    )
     db.session.add(review)
     db.session.commit()
     return review
