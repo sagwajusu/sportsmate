@@ -446,6 +446,7 @@ function MyReviewsPage() {
             </div>
           </form>
         </div>
+      )}
       {/* 탭 네비게이션 (내가 남긴 후기 | 받은 후기 1:1 레이아웃) */}
       <div className="mobile-reviews-tabs">
         <button
