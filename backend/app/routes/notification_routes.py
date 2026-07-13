@@ -214,7 +214,13 @@ def _vote_summary_items(user_id):
 @jwt_required()
 def notifications():
     user_id = int(get_jwt_identity())
-    items = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).all()
+    limit = request.args.get("limit", type=int)
+    
+    query = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc())
+    if limit:
+        query = query.limit(limit)
+        
+    items = query.all()
     return jsonify({"items": [_enrich_notification(item, user_id) for item in items]})
 
 

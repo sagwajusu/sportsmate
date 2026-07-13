@@ -33,7 +33,6 @@ class Meeting(db.Model, TimestampMixin):
     sport = db.relationship("Sport")
     participants = db.relationship("Participant", back_populates="meeting", cascade="all, delete-orphan")
     chat_room = db.relationship("ChatRoom", back_populates="meeting", uselist=False, cascade="all, delete-orphan")
-
     def status_label(self):
         if self.status == "open":
             return "모집중"
