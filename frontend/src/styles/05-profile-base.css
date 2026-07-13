@@ -401,6 +401,63 @@
 }
 
 /* 2026-06-29: PC 내 정보 활동 메뉴를 오른쪽 결과 패널 상단 탭으로 통합. */
+.desktop-prototype .profile-support-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid #dbeafe;
+  background: #ffffff;
+}
+
+.desktop-prototype .profile-support-card > div {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.desktop-prototype .profile-support-card__icon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.desktop-prototype .profile-support-card h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.desktop-prototype .profile-support-card p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.desktop-prototype .profile-support-card__link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 950;
+  text-decoration: none;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+}
+
+.desktop-prototype .profile-support-card__link:hover {
+  background: #1d4ed8;
+}
+
 .profile-activity-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2184,6 +2241,59 @@
   flex: 1;
 }
 
+/* 2026-07-13: PC 내 정보 활동 카드의 탭별 태그와 종료 상태 표시를 정리. */
+.profile-schedule-panel .profile-schedule-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.profile-schedule-panel .profile-schedule-tag {
+  display: inline-flex;
+  max-width: 150px;
+  min-height: 24px;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-schedule-panel .profile-schedule-tag svg {
+  flex: 0 0 auto;
+}
+
+.profile-schedule-panel .profile-schedule-tag.is-host {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.profile-schedule-panel .profile-schedule-tag.is-regular {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.profile-schedule-panel .profile-schedule-tag.is-one-time {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.profile-schedule-panel .profile-schedule-tag.is-sport {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.profile-schedule-panel .schedule-dday.is-ended {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
 .schedule-item--profile h3,
 .schedule-item--profile p {
   overflow: hidden;
@@ -2557,6 +2667,39 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* 2026-07-13: PC 방장 관리 상단에 모임 삭제 텍스트 액션을 추가. */
+.desktop-host-delete-link {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  padding: 5px 0;
+  text-decoration: none;
+  transition: color 150ms ease, text-decoration-color 150ms ease;
+}
+
+.desktop-host-delete-link:hover:not(:disabled) {
+  color: #dc2626;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.desktop-host-delete-link:focus-visible {
+  outline: 2px solid rgba(239, 68, 68, 0.45);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.desktop-host-delete-link:disabled {
+  color: #fca5a5;
+  cursor: progress;
+  text-decoration: none;
 }
 
 .desktop-host-meeting-card {
