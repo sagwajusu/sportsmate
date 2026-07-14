@@ -157,16 +157,17 @@ function AdminBroadcastPage() {
                     gap: "8px",
                     padding: "8px 16px",
                     borderRadius: "8px",
-                    border: "1px solid #cbd5e1",
-                    backgroundColor: "#ffffff",
-                    color: "#334155",
+                    border: "none",
+                    backgroundColor: "#2563eb",
+                    color: "#ffffff",
                     fontSize: "13px",
                     fontWeight: 600,
                     cursor: "pointer",
-                    transition: "all 0.2s ease"
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)"
                   }}
-                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#f1f5f9"; }}
-                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#ffffff"; }}
+                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#1d4ed8"; }}
+                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#2563eb"; }}
                 >
                   <Bell size={14} />
                   {`발송 이력 (${logs.length}건) →`}
@@ -400,16 +401,17 @@ function AdminBroadcastPage() {
                 gap: "6px",
                 padding: "8px 16px",
                 borderRadius: "8px",
-                border: "1px solid #cbd5e1",
-                backgroundColor: "#ffffff",
-                color: "#334155",
+                border: "none",
+                backgroundColor: "#2563eb",
+                color: "#ffffff",
                 fontSize: "13px",
                 fontWeight: 600,
                 cursor: "pointer",
-                transition: "all 0.2s ease"
+                transition: "all 0.2s ease",
+                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)"
               }}
-              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#f1f5f9"; }}
-              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#ffffff"; }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#1d4ed8"; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#2563eb"; }}
             >
               ← 알림 발송하기
             </button>
