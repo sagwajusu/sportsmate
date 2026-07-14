@@ -15,6 +15,7 @@ import {
 import { useResponsive } from "../hooks/useResponsive";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { adminApi } from "../api/adminApi";
+import MobileBottomNavigation from "../components/layout/mobile/MobileBottomNavigation.jsx";
 
 function AdminLayout() {
   const location = useLocation();
@@ -75,6 +76,9 @@ function AdminLayout() {
     if (location.pathname.startsWith("/admin/meetings/")) {
       return "모임 상세 정보";
     }
+    if (location.pathname.startsWith("/admin/reports/")) {
+      return "신고 상세 처리";
+    }
     switch (location.pathname) {
       case "/admin/users":
         return "회원 관리";
@@ -104,6 +108,7 @@ function AdminLayout() {
         <main className="mobile-main">
           <Outlet />
         </main>
+        <MobileBottomNavigation />
       </div>
     );
   }

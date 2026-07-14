@@ -6,6 +6,7 @@ import MobileHeader from "../components/layout/mobile/MobileHeader.jsx";
 import { supportApi } from "../api/supportApi";
 import { useAsync } from "../hooks/useAsync";
 import { useResponsive } from "../hooks/useResponsive";
+import MobileSupportPage from "../components/support/mobile/MobileSupportPage.jsx";
 
 const CATEGORIES = [
   { value: "general", label: "일반 문의" },
@@ -304,12 +305,7 @@ function SupportPage() {
   );
 
   if (isMobile) {
-    return (
-      <>
-        <MobileHeader title="운영 메시지함" />
-        {page}
-      </>
-    );
+    return <MobileSupportPage />;
   }
 
   return page;
