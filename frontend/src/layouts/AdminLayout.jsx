@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation, Link } from "react-router-dom";
 import { 
   Home, 
@@ -9,16 +9,56 @@ import {
   ChevronDown,
   BarChart3,
   Bell,
-  ClipboardList
+  ClipboardList,
+  Headphones
 } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { adminApi } from "../api/adminApi";
 
 function AdminLayout() {
   const location = useLocation();
   const { isMobile } = useResponsive();
   const { user } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [pendingReportsCount, setPendingReportsCount] = useState(0);
+  const [pendingInquiriesCount, setPendingInquiriesCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchCounts() {
+      try {
+        const reportsData = await adminApi.reports();
+        if (reportsData && reportsData.items) {
+          const count = reportsData.items.filter(item => item.status === "pending" || item.status === "대기 중").length;
+          setPendingReportsCount(count);
+        }
+      } catch (err) {
+        console.error("Failed to fetch reports count:", err);
+      }
+
+      try {
+        const inquiriesData = await adminApi.supportInquiries({ status: "pending" });
+        if (inquiriesData && inquiriesData.items) {
+          setPendingInquiriesCount(inquiriesData.items.length);
+        }
+      } catch (err) {
+        console.error("Failed to fetch inquiries count:", err);
+      }
+    }
+    fetchCounts();
+
+    const handleUpdate = () => fetchCounts();
+    window.addEventListener("inquiries_updated", handleUpdate);
+    window.addEventListener("reports_updated", handleUpdate);
+
+    const interval = setInterval(fetchCounts, 10000);
+
+    return () => {
+      window.removeEventListener("inquiries_updated", handleUpdate);
+      window.removeEventListener("reports_updated", handleUpdate);
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleNavItemClick = (e, path) => {
     if (location.pathname === path) {
@@ -41,13 +81,15 @@ function AdminLayout() {
       case "/admin/meetings":
         return "모임 관리";
       case "/admin/reports":
-        return "신고 및 제재 리포트 관리";
+        return "신고 관리";
       case "/admin/broadcast":
         return "전체 공지 및 알림 발송";
       case "/admin/analytics":
         return "전체 통계 대시보드";
       case "/admin/audit-logs":
         return "관리자 작업 이력 로그";
+      case "/admin/support":
+        return "고객 문의 관리";
       case "/admin/settings":
         return "시스템 설정";
       case "/admin":
@@ -121,7 +163,24 @@ function AdminLayout() {
             }
           >
             <AlertTriangle size={18} />
-            <span>리포트 관리</span>
+            <span>신고 관리</span>
+            {pendingReportsCount > 0 && (
+              <span className="admin-sidebar__badge">{pendingReportsCount}</span>
+            )}
+          </NavLink>
+
+          <NavLink 
+            to="/admin/support" 
+            onClick={(e) => handleNavItemClick(e, "/admin/support")}
+            className={({ isActive }) => 
+              `admin-sidebar__nav-item${isActive ? " active" : ""}`
+            }
+          >
+            <Headphones size={18} />
+            <span>고객 문의 관리</span>
+            {pendingInquiriesCount > 0 && (
+              <span className="admin-sidebar__badge">{pendingInquiriesCount}</span>
+            )}
           </NavLink>
 
           <NavLink 
