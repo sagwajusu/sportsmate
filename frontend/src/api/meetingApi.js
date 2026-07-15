@@ -5,6 +5,10 @@ export const meetingApi = {
   detail: (id) => apiClient.get(`/meetings/${id}`).then((res) => res.data),
   create: (payload) => apiClient.post("/meetings", payload).then((res) => res.data),
   update: (id, payload) => apiClient.patch(`/meetings/${id}`, payload).then((res) => res.data),
+  updateSession: (meetingId, sessionId, payload) =>
+    apiClient.patch(`/meetings/${meetingId}/sessions/${sessionId}`, payload).then((res) => res.data),
+  cancelSession: (meetingId, sessionId, reason) =>
+    apiClient.patch(`/meetings/${meetingId}/sessions/${sessionId}/cancel`, { reason }).then((res) => res.data),
   cancel: (id) => apiClient.delete(`/meetings/${id}`).then((res) => res.data),
   join: (id, payload = {}) => apiClient.post(`/meetings/${id}/join`, payload).then((res) => res.data),
   cancelJoin: (id) => apiClient.delete(`/meetings/${id}/join`).then((res) => res.data),

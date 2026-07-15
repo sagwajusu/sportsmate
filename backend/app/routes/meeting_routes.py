@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import Attendance, ChatMessage, ChatRoom, Meeting, Notice, Participant, Review, Sport, User, Vote, VoteOption, VoteResponse
-from app.services.meeting_service import close_expired_one_time_meetings, create_meeting, create_review, get_next_meeting_session, join_meeting, list_meeting_sessions, list_meetings, update_application, update_meeting
+from app.services.meeting_service import cancel_meeting_session, close_expired_one_time_meetings, create_meeting, create_review, get_next_meeting_session, join_meeting, list_meeting_sessions, list_meetings, update_application, update_meeting, update_meeting_session
 from app.utils.meeting_state import meeting_chat_is_read_only
 from app.utils.timezone import parse_client_datetime
 
@@ -122,6 +122,44 @@ def show(meeting_id):
 def sessions(meeting_id):
     items = list_meeting_sessions(meeting_id)
     return jsonify({"items": [item.to_dict() for item in items]})
+
+
+@meeting_bp.patch("/<int:meeting_id>/sessions/<int:session_id>")
+@jwt_required()
+def patch_session(meeting_id, session_id):
+    try:
+        item = update_meeting_session(
+            meeting_id,
+            session_id,
+            int(get_jwt_identity()),
+            request.get_json() or {},
+        )
+        return jsonify({"message": "일정이 변경되었습니다.", "item": item.to_dict()})
+    except LookupError as error:
+        return jsonify({"message": str(error)}), 404
+    except PermissionError as error:
+        return jsonify({"message": str(error)}), 403
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+
+
+@meeting_bp.patch("/<int:meeting_id>/sessions/<int:session_id>/cancel")
+@jwt_required()
+def cancel_session(meeting_id, session_id):
+    try:
+        item = cancel_meeting_session(
+            meeting_id,
+            session_id,
+            int(get_jwt_identity()),
+            (request.get_json() or {}).get("reason"),
+        )
+        return jsonify({"message": "일정이 취소되었습니다.", "item": item.to_dict()})
+    except LookupError as error:
+        return jsonify({"message": str(error)}), 404
+    except PermissionError as error:
+        return jsonify({"message": str(error)}), 403
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
 
 
 @meeting_bp.patch("/<int:meeting_id>")
