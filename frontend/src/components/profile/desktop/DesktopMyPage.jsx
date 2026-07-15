@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+﻿import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
   Camera,
@@ -26,6 +26,7 @@ import { getMeetingCoverImage } from "../../../utils/sportThumbnails";
 import { formatRegularMeetingSchedule } from "../../../utils/formatters";
 
 const PROFILE_INTRO_MAX_LENGTH = 30;
+const SCHEDULE_REASON_MAX_LENGTH = 255;
 const PROFILE_INTRO_EMPTY_TEXT = "아직 한 줄 소개가 없습니다.";
 const FALLBACK_PROFILE_IMAGE = "/images/logo.png";
 const MEETING_FILTERS = [
@@ -36,7 +37,7 @@ const MEETING_FILTERS = [
 ];
 
 const levelLabels = {
-  // 2026-07-01: 모바일 프로필 기준과 동일하게 운동 수준 명칭을 통일.
+  // 2026-07-01: 紐⑤컮???꾨줈??湲곗?怨??숈씪?섍쾶 ?대룞 ?섏? 紐낆묶???듭씪.
   beginner: "입문",
   intermediate: "중급",
   advanced: "상급"
@@ -69,6 +70,23 @@ function formatDateTime(value) {
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
   return `${month}.${day}(${weekday}) ${hours}:${minutes}`;
+}
+
+function formatDateInputValue(value) {
+  const date = validDate(value);
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatTimeInputValue(value) {
+  const date = validDate(value);
+  if (!date) return "";
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
 function validDate(value) {
@@ -174,11 +192,12 @@ function hasLinkedEmailProvider(user) {
 
 function normalizeMeeting(meeting, state) {
   const isRegular = meeting.meeting_type === "regular";
-  const scheduledSessions = sortSessionsByStart((meeting.sessions || []).filter((session) => session.status === "scheduled"));
+  const allSessions = sortSessionsByStart(meeting.sessions || []);
+  const scheduledSessions = allSessions.filter((session) => session.status === "scheduled");
   const fallbackNextSession = scheduledSessions.find((session) => isUpcomingSchedule(session.start_at));
   const nextSession = isRegular ? meeting.next_session || fallbackNextSession || null : null;
   const lastSession = isRegular ? [...scheduledSessions].reverse().find((session) => validDate(session.start_at)) : null;
-  // 2026-07-13: 정기모임은 Meeting.start_at만으로 종료 판단하지 않고 실제 회차 데이터를 우선한다.
+  // 2026-07-13: ?뺢린紐⑥엫? Meeting.start_at留뚯쑝濡?醫낅즺 ?먮떒?섏? ?딄퀬 ?ㅼ젣 ?뚯감 ?곗씠?곕? ?곗꽑?쒕떎.
   const scheduleStart = isRegular ? (nextSession?.start_at || lastSession?.start_at || null) : meeting.start_at;
   const scheduleEnd = isRegular ? (nextSession?.end_at || lastSession?.end_at || null) : meeting.end_at;
   return {
@@ -196,7 +215,7 @@ function normalizeMeeting(meeting, state) {
     rawTime: scheduleStart || null,
     endTime: scheduleEnd || null,
     operationEndAt: meeting.end_at || null,
-    sessions: scheduledSessions,
+    sessions: allSessions,
     member: meetingMemberText(meeting),
     state,
     chatRoomId: meeting.chat_room_id,
@@ -229,8 +248,13 @@ function buildCalendarItems(items) {
           calendarKey: key,
           sessionId: session.id,
           sessionNumber: session.session_number,
+          sessionStatus: session.status || "scheduled",
           rawTime: session.start_at,
           endTime: session.end_at,
+          cancellationReason: session.cancellation_reason || "",
+          originalStartAt: session.original_start_at || "",
+          originalEndAt: session.original_end_at || "",
+          rescheduleReason: session.reschedule_reason || "",
           time: formatDateTime(session.start_at)
         });
       });
@@ -338,6 +362,7 @@ function calendarItemTime(value) {
 }
 
 function calendarStateLabel(item) {
+  if (item.sessionStatus === "cancelled") return "취소";
   if (item.state === "host") return "방장";
   if (item.state === "joined") return "참여";
   return "모집";
@@ -371,7 +396,7 @@ function buildCalendarCells(monthDate, items) {
   });
 }
 
-function CalendarModal({ open, items, loading, error, onClose, highlightMeetingId, highlightChatRoomId, highlightSource, autoOpenHighlightedDay }) {
+function CalendarModal({ open, items, loading, error, onClose, highlightMeetingId, highlightChatRoomId, highlightSource, autoOpenHighlightedDay, onRequestChange, onRequestCancel }) {
   const [monthDate, setMonthDate] = useState(() => calendarBaseDate(items));
   const [selectedDay, setSelectedDay] = useState(null);
   const cells = useMemo(() => buildCalendarCells(monthDate, items), [monthDate, items]);
@@ -405,6 +430,17 @@ function CalendarModal({ open, items, loading, error, onClose, highlightMeetingI
     const matchedCell = cells.find((cell) => cell.items.some(isHighlightedItem));
     if (matchedCell) setSelectedDay(matchedCell);
   }, [autoOpenHighlightedDay, cells, highlightedItem, open]);
+
+  useEffect(() => {
+    if (!selectedDay) return;
+    const refreshedCell = cells.find((cell) => {
+      const current = selectedDay.date;
+      return cell.date.getFullYear() === current.getFullYear()
+        && cell.date.getMonth() === current.getMonth()
+        && cell.date.getDate() === current.getDate();
+    });
+    setSelectedDay(refreshedCell?.items.length ? refreshedCell : null);
+  }, [cells, selectedDay?.date]);
 
   if (!open) return null;
   return (
@@ -443,7 +479,7 @@ function CalendarModal({ open, items, loading, error, onClose, highlightMeetingI
                     <button
                       type="button"
                       key={cell.key}
-                      className={`calendar-day profile-calendar-day ${cell.outside ? "is-outside" : ""} ${cell.items.length ? "has-event" : ""} ${cell.items.some((item) => item.state === "host") ? "host-day" : ""} ${cell.items.some(isHighlightedItem) ? "is-highlighted-from-chat" : ""}`}
+                      className={`calendar-day profile-calendar-day ${cell.outside ? "is-outside" : ""} ${cell.items.length ? "has-event" : ""} ${cell.items.some((item) => item.state === "host") ? "host-day" : ""} ${cell.items.some((item) => item.sessionStatus === "cancelled") ? "has-cancelled-event" : ""} ${cell.items.some(isHighlightedItem) ? "is-highlighted-from-chat" : ""}`}
                       disabled={cell.outside || !cell.items.length}
                       onClick={() => cell.items.length && setSelectedDay(cell)}
                     >
@@ -472,8 +508,14 @@ function CalendarModal({ open, items, loading, error, onClose, highlightMeetingI
             <button className="schedule-modal-close" type="button" onClick={() => setSelectedDay(null)}><X size={18} /></button>
             <h2 className="schedule-modal-title">{calendarDayTitle(selectedDay.date)} 일정</h2>
             <div className="schedule-modal-body">
-              {selectedDay.items.map((item) => (
-                <article className={`schedule-modal-item ${isHighlightedItem(item) ? "is-highlighted-from-chat" : ""}`} key={item.calendarKey || `${item.state}-${item.id}`}>
+              {selectedDay.items.map((item) => {
+                const canManageSchedule = item.state === "host"
+                  && item.meetingType === "regular"
+                  && item.sessionId
+                  && item.sessionStatus === "scheduled"
+                  && !isPastDateTime(item.rawTime);
+                return (
+                <article className={`schedule-modal-item ${item.sessionStatus === "cancelled" ? "is-cancelled-session" : ""} ${isHighlightedItem(item) ? "is-highlighted-from-chat" : ""}`} key={item.calendarKey || `${item.state}-${item.id}`}>
                   <img src={item.img} alt={item.title} />
                   <div>
                     {isHighlightedItem(item) && isChatbotHighlight && (
@@ -486,20 +528,168 @@ function CalendarModal({ open, items, loading, error, onClose, highlightMeetingI
                     <span>{calendarItemTime(item.rawTime)}</span>
                     <h3>{item.title}</h3>
                     <p>{item.place} · {item.member}</p>
+                    {item.sessionStatus === "cancelled" && (
+                      <div className="schedule-session-note is-cancelled">
+                        <b>일정 취소</b>
+                        <span>{item.cancellationReason || "취소 사유가 등록되지 않았습니다."}</span>
+                      </div>
+                    )}
+                    {item.sessionStatus === "scheduled" && item.rescheduleReason && item.originalStartAt && (
+                      <div className="schedule-session-note">
+                        <b>일정 변경됨</b>
+                        <span>기존 {formatDateTime(item.originalStartAt)} · 사유: {item.rescheduleReason}</span>
+                      </div>
+                    )}
                     {item.state !== "host" && <span className={`board-badge ${item.state}`}>{calendarStateLabel(item)}</span>}
                     <footer>
                       <Link className="ghost-btn" to={`/meetings/${item.id}`}>상세 보기</Link>
                       {isHighlightedItem(item) && highlightChatRoomId && <Link className="ghost-btn is-chat-return" to={`/chats/${highlightChatRoomId}`}>채팅으로 돌아가기</Link>}
                       {item.state === "host" && <Link className="ghost-btn" to={`/host/meetings/${item.id}`}>관리</Link>}
                     </footer>
+                    {canManageSchedule && (
+                      <footer className="schedule-session-actions">
+                        <button className="ghost-btn schedule-session-change-btn" type="button" onClick={() => onRequestChange?.(item)}>일정 변경</button>
+                        <button className="ghost-btn schedule-session-cancel-btn" type="button" onClick={() => onRequestCancel?.(item)}>일정 취소</button>
+                      </footer>
+                    )}
                   </div>
                 </article>
-              ))}
+              );
+              })}
             </div>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function ScheduleChangeModal({ item, submitting, error, onClose, onSubmit }) {
+  const [dateValue, setDateValue] = useState(formatDateInputValue(item?.rawTime));
+  const [startValue, setStartValue] = useState(formatTimeInputValue(item?.rawTime));
+  const [endValue, setEndValue] = useState(formatTimeInputValue(item?.endTime));
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    setDateValue(formatDateInputValue(item?.rawTime));
+    setStartValue(formatTimeInputValue(item?.rawTime));
+    setEndValue(formatTimeInputValue(item?.endTime));
+    setReason("");
+  }, [item]);
+
+  if (!item) return null;
+
+  const submit = (event) => {
+    event.preventDefault();
+    const trimmedReason = reason.trim();
+    if (!dateValue || !startValue || !endValue) {
+      onSubmit(null, "변경 날짜와 시간을 모두 입력해 주세요.");
+      return;
+    }
+    if (!trimmedReason) {
+      onSubmit(null, "변경 사유를 입력해 주세요.");
+      return;
+    }
+    if (trimmedReason.length > SCHEDULE_REASON_MAX_LENGTH) {
+      onSubmit(null, `변경 사유는 ${SCHEDULE_REASON_MAX_LENGTH}자 이내로 입력해 주세요.`);
+      return;
+    }
+    const startAt = `${dateValue}T${startValue}:00`;
+    const endAt = `${dateValue}T${endValue}:00`;
+    if (new Date(endAt) <= new Date(startAt)) {
+      onSubmit(null, "종료 시간은 시작 시간 이후여야 합니다.");
+      return;
+    }
+    if (new Date(startAt) <= new Date()) {
+      onSubmit(null, "현재 이후의 시간으로만 변경할 수 있습니다.");
+      return;
+    }
+    onSubmit({ start_at: startAt, end_at: endAt, reason: trimmedReason });
+  };
+
+  return (
+    <div className="schedule-modal schedule-modal--form is-open" aria-hidden="false" onMouseDown={(event) => event.target === event.currentTarget && !submitting && onClose()}>
+      <form className="schedule-modal-panel schedule-action-panel" onSubmit={submit}>
+        <button className="schedule-modal-close" type="button" onClick={onClose} disabled={submitting}><X size={18} /></button>
+        <h2 className="schedule-modal-title">일정 변경</h2>
+        <p className="schedule-action-guide">선택한 일정만 변경됩니다. 다른 정기 일정에는 영향을 주지 않습니다.</p>
+        <div className="schedule-action-current">
+          <b>{item.title}</b>
+          <span>현재 일정 {formatDateTime(item.rawTime)}{item.endTime ? `~${calendarItemTime(item.endTime)}` : ""}</span>
+        </div>
+        <div className="schedule-action-grid">
+          <label>변경 날짜 *<input type="date" value={dateValue} onChange={(event) => setDateValue(event.target.value)} /></label>
+          <label>시작 시간 *<input type="time" value={startValue} onChange={(event) => setStartValue(event.target.value)} /></label>
+          <label>종료 시간 *<input type="time" value={endValue} onChange={(event) => setEndValue(event.target.value)} /></label>
+        </div>
+        <label className="schedule-action-field">변경 사유 *
+          <textarea value={reason} maxLength={SCHEDULE_REASON_MAX_LENGTH} onChange={(event) => setReason(event.target.value)} placeholder="참여자에게 전달할 변경 사유를 입력해 주세요." />
+          <small>{reason.length}/{SCHEDULE_REASON_MAX_LENGTH}</small>
+        </label>
+        <p className="schedule-action-note">일정을 변경하면 승인된 참여자에게 알림이 전송됩니다.</p>
+        {error && <p className="schedule-action-error">{error}</p>}
+        <div className="schedule-action-buttons">
+          <button className="ghost-btn" type="button" onClick={onClose} disabled={submitting}>돌아가기</button>
+          <button className="schedule-action-submit" type="submit" disabled={submitting}>{submitting ? "변경 중..." : "일정 변경"}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const CANCEL_REASON_PRESETS = [
+  { label: "우천", text: "우천으로 인해 이번 일정은 취소합니다." },
+  { label: "장소 문제", text: "장소 이용 문제로 이번 일정은 취소합니다." },
+  { label: "방장 사정", text: "방장 사정으로 이번 일정은 취소합니다." },
+  { label: "참여 인원 부족", text: "참여 인원 부족으로 이번 일정은 취소합니다." }
+];
+
+function ScheduleCancelModal({ item, submitting, error, onClose, onSubmit }) {
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    setReason("");
+  }, [item]);
+
+  if (!item) return null;
+
+  const submit = (event) => {
+    event.preventDefault();
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      onSubmit(null, "취소 사유를 입력해 주세요.");
+      return;
+    }
+    if (trimmedReason.length > SCHEDULE_REASON_MAX_LENGTH) {
+      onSubmit(null, `취소 사유는 ${SCHEDULE_REASON_MAX_LENGTH}자 이내로 입력해 주세요.`);
+      return;
+    }
+    onSubmit({ reason: trimmedReason });
+  };
+
+  return (
+    <div className="schedule-modal schedule-modal--form is-open" aria-hidden="false" onMouseDown={(event) => event.target === event.currentTarget && !submitting && onClose()}>
+      <form className="schedule-modal-panel schedule-action-panel" onSubmit={submit}>
+        <button className="schedule-modal-close" type="button" onClick={onClose} disabled={submitting}><X size={18} /></button>
+        <h2 className="schedule-modal-title">일정 취소</h2>
+        <p className="schedule-action-guide">{formatDateTime(item.rawTime)}{item.endTime ? `~${calendarItemTime(item.endTime)}` : ""} 일정만 취소합니다.</p>
+        <div className="schedule-reason-presets">
+          {CANCEL_REASON_PRESETS.map((preset) => (
+            <button key={preset.label} type="button" onClick={() => setReason(preset.text)}>{preset.label}</button>
+          ))}
+        </div>
+        <label className="schedule-action-field">취소 사유 *
+          <textarea value={reason} maxLength={SCHEDULE_REASON_MAX_LENGTH} onChange={(event) => setReason(event.target.value)} placeholder="참여자에게 전달할 취소 사유를 입력해 주세요." />
+          <small>{reason.length}/{SCHEDULE_REASON_MAX_LENGTH}</small>
+        </label>
+        <p className="schedule-action-note">취소하면 이 일정은 달력에 취소 상태로 남고, 승인된 참여자에게 알림이 전송됩니다.</p>
+        {error && <p className="schedule-action-error">{error}</p>}
+        <div className="schedule-action-buttons">
+          <button className="ghost-btn" type="button" onClick={onClose} disabled={submitting}>돌아가기</button>
+          <button className="schedule-action-submit is-danger" type="submit" disabled={submitting}>{submitting ? "취소 중..." : "일정 취소"}</button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -521,6 +711,9 @@ function DesktopMyPage() {
   const [calendarMeetings, setCalendarMeetings] = useState(null);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState("");
+  const [scheduleAction, setScheduleAction] = useState(null);
+  const [scheduleActionSubmitting, setScheduleActionSubmitting] = useState(false);
+  const [scheduleActionError, setScheduleActionError] = useState("");
   const [createdMeetingFilter, setCreatedMeetingFilter] = useState("all");
   const [joinedMeetingFilter, setJoinedMeetingFilter] = useState("all");
 
@@ -555,7 +748,7 @@ function DesktopMyPage() {
   const canUseProtectedUserApi = Boolean(authUser && backendTokenReady);
 
   const profileState = useAsync(
-    // 2026-07-01: 백엔드 JWT 준비 전 보호 API 호출로 발생하던 401 반복을 방지.
+    // 2026-07-01: 諛깆뿏??JWT 以鍮???蹂댄샇 API ?몄텧濡?諛쒖깮?섎뜕 401 諛섎났??諛⑹?.
     () => (canUseProtectedUserApi ? userApi.me() : Promise.resolve({ user: null })),
     [canUseProtectedUserApi, authUser?.id, refreshKey]
   );
@@ -596,6 +789,65 @@ function DesktopMyPage() {
       cancelled = true;
     };
   }, [calendarOpen, canUseProtectedUserApi, authUser?.id, refreshKey]);
+
+  const refreshCalendarData = async () => {
+    if (!canUseProtectedUserApi) return;
+    const data = await userApi.myCalendar();
+    setCalendarMeetings(data);
+  };
+
+  const openScheduleAction = (type, item) => {
+    setScheduleAction({ type, item });
+    setScheduleActionError("");
+  };
+
+  const closeScheduleAction = () => {
+    if (scheduleActionSubmitting) return;
+    setScheduleAction(null);
+    setScheduleActionError("");
+  };
+
+  const handleScheduleChange = async (payload, clientError = "") => {
+    if (clientError) {
+      setScheduleActionError(clientError);
+      return;
+    }
+    if (!scheduleAction?.item || !payload) return;
+    setScheduleActionSubmitting(true);
+    setScheduleActionError("");
+    try {
+      await meetingApi.updateSession(scheduleAction.item.id, scheduleAction.item.sessionId, payload);
+      await refreshCalendarData();
+      setRefreshKey((key) => key + 1);
+      setScheduleAction(null);
+      alert("일정이 변경되었습니다.");
+    } catch (error) {
+      setScheduleActionError(error.response?.data?.message || "요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setScheduleActionSubmitting(false);
+    }
+  };
+
+  const handleScheduleCancel = async (payload, clientError = "") => {
+    if (clientError) {
+      setScheduleActionError(clientError);
+      return;
+    }
+    if (!scheduleAction?.item || !payload?.reason) return;
+    setScheduleActionSubmitting(true);
+    setScheduleActionError("");
+    try {
+      await meetingApi.cancelSession(scheduleAction.item.id, scheduleAction.item.sessionId, payload.reason);
+      await refreshCalendarData();
+      setRefreshKey((key) => key + 1);
+      setScheduleAction(null);
+      alert("일정이 취소되었습니다.");
+    } catch (error) {
+      setScheduleActionError(error.response?.data?.message || "요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setScheduleActionSubmitting(false);
+    }
+  };
 
   const user = profileState.data?.user || authUser;
   const profile = user?.profile || {};
@@ -667,7 +919,7 @@ function DesktopMyPage() {
     { key: "reviews", label: "후기 관리", icon: FileText }
   ];
   const activePanel = activityPanels[activeActivity];
-  // 2026-07-02: PC 프로필 수정 보호는 SportsMate DB provider에 email 연동이 실제 반영된 경우에만 통과.
+  // 2026-07-02: PC ?꾨줈???섏젙 蹂댄샇??SportsMate DB provider??email ?곕룞???ㅼ젣 諛섏쁺??寃쎌슦?먮쭔 ?듦낵.
   const canVerifyPassword = hasLinkedEmailProvider(user);
 
   const startIntroEdit = () => {
@@ -680,7 +932,7 @@ function DesktopMyPage() {
     const nextIntro = introDraft.trim().slice(0, PROFILE_INTRO_MAX_LENGTH);
     setSavingIntro(true);
     try {
-      // 2026-07-01: PC 내 정보 한 줄 소개를 백엔드 프로필 bio와 연결.
+      // 2026-07-01: PC ???뺣낫 ??以??뚭컻瑜?諛깆뿏???꾨줈??bio? ?곌껐.
       const data = await userApi.updateMe({ bio: nextIntro });
       setCurrentUser?.(data.user);
       setRefreshKey((key) => key + 1);
@@ -747,7 +999,7 @@ function DesktopMyPage() {
     const reader = new FileReader();
     reader.onload = async () => {
       const imageUrl = reader.result;
-      // 2026-07-01: 실제 파일 업로드 API 도입 전까지 프로필 이미지 URL 필드에 미리보기 값을 저장.
+      // 2026-07-01: ?ㅼ젣 ?뚯씪 ?낅줈??API ?꾩엯 ?꾧퉴吏 ?꾨줈???대?吏 URL ?꾨뱶??誘몃━蹂닿린 媛믪쓣 ???
       const data = await userApi.updateMe({ profile_image_url: imageUrl });
       setCurrentUser?.(data.user);
       setRefreshKey((key) => key + 1);
@@ -768,7 +1020,7 @@ function DesktopMyPage() {
 
   const confirmProtectedEdit = async () => {
     if (!authPassword.trim()) {
-      setAuthError("비밀번호를 입력해주세요.");
+      setAuthError("비밀번호를 입력해 주세요.");
       return;
     }
 
@@ -776,9 +1028,9 @@ function DesktopMyPage() {
     setAuthError("");
     try {
       if (!isSupabaseConfigured || !supabase) {
-        throw new Error("인증 서비스 설정을 확인해주세요.");
+        throw new Error("인증 서비스 설정을 확인해 주세요.");
       }
-      // 2026-07-02: 비밀번호 원본은 Supabase Auth에 있으므로 Supabase 로그인 검증을 먼저 수행.
+      // 2026-07-02: 鍮꾨?踰덊샇 ?먮낯? Supabase Auth???덉쑝誘濡?Supabase 濡쒓렇??寃利앹쓣 癒쇱? ?섑뻾.
       const { error: supabaseError } = await supabase.auth.signInWithPassword({
         email: user?.email || "",
         password: authPassword
@@ -888,7 +1140,7 @@ function DesktopMyPage() {
             </div>
           </div>
           <div className="profile-schedule-body">
-            {(meetingsState.loading || reviewsLoading) && <p className="empty-schedule">내 활동 정보를 불러오는 중입니다.</p>}
+            {(meetingsState.loading || reviewsLoading) && <p className="empty-schedule">활동 정보를 불러오는 중입니다.</p>}
             {!meetingsState.loading && !reviewsLoading && activeActivity === "reviews" && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
                 {/* Sub tabs */}
@@ -981,7 +1233,7 @@ function DesktopMyPage() {
                           <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#4b5563' }}>{review.content}</p>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#eab308' }}>★ {review.rating || 0}점</span>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#eab308' }}>★ {review.rating || 0}</span>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             <button
                               type="button"
@@ -1013,11 +1265,11 @@ function DesktopMyPage() {
                       <article className="profile-review-item" key={review.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
                         <div>
                           <span style={{ fontSize: '11px', color: '#9ca3af', display: 'block' }}>{review.meeting?.title || "모임"}</span>
-                          <b style={{ fontSize: '14px', color: '#1f2937' }}>익명의 메이트로부터 받은 후기</b>
+                          <b style={{ fontSize: '14px', color: '#1f2937' }}>메이트에게 받은 후기</b>
                           <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#4b5563' }}>{review.content}</p>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#eab308' }}>★ {review.rating || 0}점</span>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#eab308' }}>★ {review.rating || 0}</span>
                           <Link className="ghost-btn" to={`/meetings/${review.meeting_id}`} style={{ fontSize: '12px' }}>모임 보기</Link>
                         </div>
                       </article>
@@ -1096,7 +1348,7 @@ function DesktopMyPage() {
               <span style={{ fontSize: '12px', color: '#6b7280' }}>{writingReview.meetingTitle}</span>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>{writingReview.peerNickname}님 후기 작성</h2>
             </div>
-            <p style={{ margin: 0, fontSize: '13px', color: '#4b5563' }}>이 메이트와의 운동 경험은 어떠셨나요? 솔직한 후기를 남겨주세요.</p>
+            <p style={{ margin: 0, fontSize: '13px', color: '#4b5563' }}>이 메이트와의 운동 경험은 어땠나요? 솔직한 후기를 남겨주세요.</p>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151' }}>평점 선택</label>
@@ -1109,7 +1361,7 @@ function DesktopMyPage() {
                 <option value={4}>★ 4점 (좋아요)</option>
                 <option value={3}>★ 3점 (보통이에요)</option>
                 <option value={2}>★ 2점 (별로예요)</option>
-                <option value={1}>★ 1점 (최악이에요)</option>
+                <option value={1}>★ 1점 (아쉬워요)</option>
               </select>
             </div>
 
@@ -1119,7 +1371,7 @@ function DesktopMyPage() {
                 required
                 value={reviewContent}
                 onChange={(e) => setReviewContent(e.target.value)}
-                placeholder="운동 매너, 소통, 참여도 등에 대해 남겨주세요."
+                placeholder="운동 매너, 소통, 참여 태도에 대해 남겨주세요."
                 style={{ padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '14px', minHeight: '100px', resize: 'vertical' }}
               />
             </div>
@@ -1141,6 +1393,22 @@ function DesktopMyPage() {
         highlightChatRoomId={calendarHighlight.chatRoomId}
         highlightSource={calendarHighlight.source}
         autoOpenHighlightedDay={calendarHighlight.autoOpen}
+        onRequestChange={(item) => openScheduleAction("change", item)}
+        onRequestCancel={(item) => openScheduleAction("cancel", item)}
+      />
+      <ScheduleChangeModal
+        item={scheduleAction?.type === "change" ? scheduleAction.item : null}
+        submitting={scheduleActionSubmitting}
+        error={scheduleAction?.type === "change" ? scheduleActionError : ""}
+        onClose={closeScheduleAction}
+        onSubmit={handleScheduleChange}
+      />
+      <ScheduleCancelModal
+        item={scheduleAction?.type === "cancel" ? scheduleAction.item : null}
+        submitting={scheduleActionSubmitting}
+        error={scheduleAction?.type === "cancel" ? scheduleActionError : ""}
+        onClose={closeScheduleAction}
+        onSubmit={handleScheduleCancel}
       />
     </div>
   );

@@ -1,0 +1,4 @@
+ALTER TABLE public.meeting_sessions
+  ADD COLUMN IF NOT EXISTS original_start_at TIMESTAMP WITHOUT TIME ZONE,
+  ADD COLUMN IF NOT EXISTS original_end_at TIMESTAMP WITHOUT TIME ZONE,
+  ADD COLUMN IF NOT EXISTS reschedule_reason TEXT;

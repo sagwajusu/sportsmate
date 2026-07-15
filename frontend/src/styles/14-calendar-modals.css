@@ -32,6 +32,15 @@
   min-height: 96px;
 }
 
+.profile-calendar-day.has-cancelled-event {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.profile-calendar-day.has-cancelled-event em {
+  color: #b91c1c;
+}
+
 .schedule-modal {
   position: fixed;
   inset: 0;
@@ -54,6 +63,11 @@
 .schedule-modal--day {
   z-index: 130;
   background: rgba(15, 23, 42, 0.24);
+}
+
+.schedule-modal--form {
+  z-index: 145;
+  background: rgba(15, 23, 42, 0.38);
 }
 
 .schedule-modal-panel {
@@ -159,6 +173,13 @@
   border-top: 1px solid #93c5fd;
 }
 
+.schedule-modal-item.is-cancelled-session {
+  border-color: #fecaca;
+  border-radius: 12px;
+  background: #fff7f7;
+  padding: 12px;
+}
+
 .schedule-modal-item img {
   width: 96px;
   height: 86px;
@@ -222,6 +243,192 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.schedule-session-note {
+  display: grid;
+  gap: 3px;
+  margin-top: 9px;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 9px 10px;
+}
+
+.schedule-session-note b {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.schedule-session-note span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.schedule-session-note.is-cancelled {
+  background: #fee2e2;
+}
+
+.schedule-session-note.is-cancelled b,
+.schedule-session-note.is-cancelled span {
+  color: #991b1b;
+}
+
+.schedule-session-actions {
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 10px;
+}
+
+.schedule-session-change-btn {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.schedule-session-cancel-btn {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #dc2626;
+}
+
+.schedule-action-panel {
+  width: min(100%, 560px);
+}
+
+.schedule-action-guide,
+.schedule-action-note {
+  margin: -6px 0 16px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.schedule-action-current {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.schedule-action-current b {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.schedule-action-current span {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.schedule-action-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.schedule-action-grid label,
+.schedule-action-field {
+  display: grid;
+  gap: 7px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.schedule-action-grid input,
+.schedule-action-field textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  padding: 11px 12px;
+  font: inherit;
+  font-weight: 800;
+}
+
+.schedule-action-field textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.schedule-action-field small {
+  justify-self: end;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.schedule-reason-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.schedule-reason-presets button {
+  min-height: 32px;
+  border: 1px solid #dbe4ff;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.schedule-reason-presets button:hover {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.schedule-action-error {
+  margin: 12px 0 0;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.schedule-action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.schedule-action-submit {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: #4f46e5;
+  color: #fff;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.schedule-action-submit.is-danger {
+  background: #ef4444;
+}
+
+.schedule-action-submit:disabled,
+.schedule-action-buttons .ghost-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .schedule-modal-item .is-chat-return {
