@@ -64,6 +64,13 @@ def update_me():
     user = user_query().get_or_404(int(get_jwt_identity()))
     data = request.get_json() or {}
 
+    if "phone_number" in data:
+        phone_number = normalize_phone_number(data["phone_number"])
+        if phone_number:
+            existing = User.query.filter(User.phone_number == phone_number, User.id != user.id).first()
+            if existing:
+                return jsonify({"message": "이미 등록되었거나 다른 계정에 연동된 핸드폰 번호입니다. 다른 번호를 입력해주세요."}), 400
+
     for field in ["name", "phone_number", "nickname", "profile_image_url"]:
         if field in data:
             setattr(user, field, normalize_phone_number(data[field]) if field == "phone_number" else data[field])
