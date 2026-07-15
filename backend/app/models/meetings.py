@@ -125,6 +125,8 @@ class Meeting(db.Model, TimestampMixin):
             "meeting_type": self.meeting_type,
             "location_name": self.location_name,
             "address": self.address,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
             "start_at": self.start_at.isoformat() if self.start_at else None,
             "end_at": self.end_at.isoformat() if self.end_at else None,
             "repeat_rule": self.repeat_rule,
@@ -159,6 +161,9 @@ class MeetingSession(db.Model, TimestampMixin):
     end_at = db.Column(db.DateTime)
     status = db.Column(db.String(20), default="scheduled", nullable=False)
     cancellation_reason = db.Column(db.String(255))
+    original_start_at = db.Column(db.DateTime)
+    original_end_at = db.Column(db.DateTime)
+    reschedule_reason = db.Column(db.Text)
 
     meeting = db.relationship("Meeting", back_populates="sessions")
 
@@ -178,6 +183,9 @@ class MeetingSession(db.Model, TimestampMixin):
             "end_at": self.end_at.isoformat() if self.end_at else None,
             "status": self.status,
             "cancellation_reason": self.cancellation_reason,
+            "original_start_at": self.original_start_at.isoformat() if self.original_start_at else None,
+            "original_end_at": self.original_end_at.isoformat() if self.original_end_at else None,
+            "reschedule_reason": self.reschedule_reason,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

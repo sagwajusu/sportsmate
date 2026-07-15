@@ -4,6 +4,7 @@ from datetime import date, datetime, time, timedelta
 
 from flask import current_app
 from sqlalchemy import and_, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
@@ -97,16 +98,34 @@ def _repeat_days_from_rule(repeat_rule):
     return []
 
 
-def _build_regular_sessions(schedule_start_date, start_time, end_time, repeat_days, target_end_date, session_number_start=1, existing_start_dates=None):
+def _session_logical_start(session):
+    return session.original_start_at or session.start_at
+
+
+def _session_logical_end(session):
+    return session.original_end_at or session.end_at
+
+
+def _build_regular_sessions(
+    schedule_start_date,
+    start_time,
+    end_time,
+    repeat_days,
+    target_end_date,
+    session_number_start=1,
+    existing_schedule_slots=None,
+    existing_actual_start_dates=None,
+):
     sessions = []
     current_date = schedule_start_date
     selected_weekdays = {WEEKDAY_INDEX[day] for day in repeat_days}
-    existing_start_dates = existing_start_dates or set()
+    existing_schedule_slots = existing_schedule_slots or set()
+    existing_actual_start_dates = existing_actual_start_dates or set()
 
     while current_date <= target_end_date:
         if current_date.weekday() in selected_weekdays:
             start_at = datetime.combine(current_date, start_time)
-            if start_at not in existing_start_dates:
+            if start_at not in existing_schedule_slots and start_at not in existing_actual_start_dates:
                 sessions.append({
                     "session_number": session_number_start + len(sessions),
                     "start_at": start_at,
@@ -134,12 +153,20 @@ def ensure_regular_meeting_sessions(meeting, now=None):
     if not repeat_days:
         return {"created_count": 0, "target_end": None, "reason": "missing_repeat_rule"}
 
-    template = next((session for session in existing_sessions if session.end_at), existing_sessions[0])
-    if not template.start_at:
+    template = (
+        next((session for session in existing_sessions if session.end_at and not session.original_start_at), None)
+        or next((session for session in existing_sessions if session.end_at), existing_sessions[0])
+    )
+    template_start = _session_logical_start(template)
+    template_end = _session_logical_end(template)
+    if not template_start:
         return {"created_count": 0, "target_end": None, "reason": "missing_time_template"}
 
     operation_end_date = meeting.end_at.date() if meeting.end_at else None
-    last_existing_date = max(session.start_at.date() for session in existing_sessions if session.start_at)
+    logical_starts = [_session_logical_start(session) for session in existing_sessions if _session_logical_start(session)]
+    if not logical_starts:
+        return {"created_count": 0, "target_end": None, "reason": "missing_time_template"}
+    last_existing_date = max(logical_start.date() for logical_start in logical_starts)
     # 2026-07-14: 기존 legacy regular는 Meeting.end_at이 첫 회차 종료시간일 수 있어 회차보다 빠르면 cap으로 쓰지 않는다.
     if operation_end_date and operation_end_date < last_existing_date:
         operation_end_date = None
@@ -149,16 +176,22 @@ def ensure_regular_meeting_sessions(meeting, now=None):
         return {"created_count": 0, "target_end": target_end.isoformat()}
 
     range_start = last_existing_date + timedelta(days=1)
-    existing_starts = {session.start_at for session in existing_sessions if session.start_at}
+    existing_schedule_slots = {
+        _session_logical_start(session)
+        for session in existing_sessions
+        if _session_logical_start(session)
+    }
+    existing_actual_start_dates = {session.start_at for session in existing_sessions if session.start_at}
     next_session_number = max((session.session_number or 0) for session in existing_sessions) + 1
     new_sessions = _build_regular_sessions(
         range_start,
-        template.start_at.time(),
-        template.end_at.time() if template.end_at else template.start_at.time(),
+        template_start.time(),
+        template_end.time() if template_end else template_start.time(),
         repeat_days,
         target_end,
         session_number_start=next_session_number,
-        existing_start_dates=existing_starts,
+        existing_schedule_slots=existing_schedule_slots,
+        existing_actual_start_dates=existing_actual_start_dates,
     )
     for session in new_sessions:
         db.session.add(MeetingSession(
@@ -345,6 +378,13 @@ def list_meetings(params, current_user_id=None):
             sport_id = None
         if sport_id:
             query = query.filter(Meeting.sport_id == sport_id)
+    elif params.get("category"):
+        try:
+            category_id = int(params["category"])
+        except (TypeError, ValueError):
+            category_id = None
+        if category_id:
+            query = query.join(Sport, Meeting.sport_id == Sport.id).filter(Sport.category_id == category_id)
 
 ######## 26.07.01 여기 충돌난 부분인데 확인해봐야됨 
 #        sport_value = str(params["sport"]).strip()
@@ -360,10 +400,15 @@ def list_meetings(params, current_user_id=None):
     if params.get("keyword"):
       keyword = f"%{params['keyword']}%"
       query = query.filter(Meeting.title.ilike(keyword) | Meeting.location_name.ilike(keyword) | Meeting.address.ilike(keyword))
-    if params.get("status"):
+    include_all_statuses = params.get("include_all") in {"1", "true", "yes"} or params.get("status") == "all"
+    if params.get("status") and params.get("status") != "all":
         query = query.filter(Meeting.status == params["status"])
+    elif include_all_statuses:
+        query = query.filter(~Meeting.status.in_(["cancelled", "suspended"]))
     else:
         query = query.filter(Meeting.status.in_(["open", "full"]))
+    if params.get("meeting_type") in {"regular", "one_time"}:
+        query = query.filter(Meeting.meeting_type == params["meeting_type"])
     if params.get("mine") == "host" and current_user_id:
         query = query.filter(Meeting.host_id == current_user_id)
     if params.get("mine") == "joined" and current_user_id:
@@ -405,6 +450,185 @@ def get_next_meeting_session(meeting_id, now=None):
         .order_by(MeetingSession.start_at.asc())
         .first()
     )
+
+
+SESSION_CHANGE_REASON_MAX_LENGTH = 255
+KOREAN_WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"]
+
+
+def _session_reason(value, field_name):
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name}을 입력해 주세요.")
+    reason = value.strip()
+    if not reason:
+        raise ValueError(f"{field_name}을 입력해 주세요.")
+    if len(reason) > SESSION_CHANGE_REASON_MAX_LENGTH:
+        raise ValueError(f"{field_name}은 {SESSION_CHANGE_REASON_MAX_LENGTH}자 이내로 입력해 주세요.")
+    return reason
+
+
+def _format_session_schedule(start_at, end_at=None):
+    if not start_at:
+        return "일정 미정"
+    weekday = KOREAN_WEEKDAYS[start_at.weekday()]
+    text = f"{start_at.month}월 {start_at.day}일 ({weekday}) {start_at:%H:%M}"
+    if end_at:
+        text = f"{text}~{end_at:%H:%M}"
+    return text
+
+
+def _session_notification_recipients(meeting):
+    rows = (
+        Participant.query
+        .filter_by(meeting_id=meeting.id, status="approved")
+        .filter(Participant.user_id != meeting.host_id)
+        .all()
+    )
+    return sorted({row.user_id for row in rows})
+
+
+def _send_session_pushes(user_ids, title, message, link_url):
+    for user_id in user_ids:
+        try:
+            send_web_push(user_id, title, message, link_url)
+        except Exception as error:
+            current_app.logger.warning("Meeting session push notification failed: %s", error)
+
+
+def _meeting_chat_link_url(meeting):
+    if not meeting.chat_room:
+        meeting.chat_room = ChatRoom(meeting_id=meeting.id)
+        db.session.flush()
+    return f"/chats/{meeting.chat_room.id}"
+
+
+def _get_manageable_regular_session(meeting_id, session_id, current_user_id, action_text):
+    meeting = Meeting.query.get(meeting_id)
+    if not meeting:
+        raise LookupError("모임을 찾을 수 없습니다.")
+    if meeting.host_id != current_user_id:
+        raise PermissionError("방장만 일정을 관리할 수 있습니다.")
+    if meeting.meeting_type != "regular":
+        raise ValueError("정기모임 일정만 관리할 수 있습니다.")
+
+    session = MeetingSession.query.filter_by(id=session_id, meeting_id=meeting_id).first()
+    if not session:
+        raise LookupError("일정을 찾을 수 없습니다.")
+    if session.status != "scheduled":
+        raise ValueError(f"{action_text}할 수 없는 일정입니다.")
+    if session.start_at <= kst_now():
+        raise ValueError(f"지난 일정은 {action_text}할 수 없습니다.")
+    return meeting, session
+
+
+def _validate_session_period(meeting, new_start, new_end):
+    # 2026-07-15: 정기모임 개별 회차는 운영 기간 표시값과 별개로 미래 일정이면 앞뒤 날짜로 조정할 수 있게 한다.
+    # Meeting.start_at/end_at은 운영 기간 또는 legacy 호환값일 수 있어 개별 회차 변경 범위 검증에는 사용하지 않는다.
+    return
+
+
+def _validate_session_time_conflict(meeting_id, session_id, new_start, new_end):
+    duplicate = (
+        MeetingSession.query
+        .filter_by(meeting_id=meeting_id, start_at=new_start)
+        .filter(MeetingSession.id != session_id)
+        .first()
+    )
+    if duplicate:
+        raise ValueError("같은 시작 시간의 일정이 이미 있습니다.")
+
+    overlap = (
+        MeetingSession.query
+        .filter_by(meeting_id=meeting_id)
+        .filter(MeetingSession.id != session_id)
+        .filter(MeetingSession.status != "cancelled")
+        .filter(MeetingSession.end_at.isnot(None))
+        .filter(MeetingSession.start_at < new_end)
+        .filter(MeetingSession.end_at > new_start)
+        .first()
+    )
+    if overlap:
+        raise ValueError("같은 모임 안에 시간이 겹치는 일정이 있습니다.")
+
+
+def update_meeting_session(meeting_id, session_id, current_user_id, data):
+    meeting, session = _get_manageable_regular_session(meeting_id, session_id, current_user_id, "변경")
+    new_start = parse_datetime(data.get("start_at"))
+    new_end = parse_datetime(data.get("end_at"))
+    if not new_start:
+        raise ValueError("변경할 시작 시간을 입력해 주세요.")
+    if not new_end:
+        raise ValueError("변경할 종료 시간을 입력해 주세요.")
+    if new_end <= new_start:
+        raise ValueError("종료 시간은 시작 시간 이후여야 합니다.")
+    if new_start.date() != new_end.date():
+        raise ValueError("일정 변경은 같은 날짜 안에서만 가능합니다.")
+    if new_start <= kst_now():
+        raise ValueError("현재 이후의 시간으로만 변경할 수 있습니다.")
+
+    reason = _session_reason(data.get("reason"), "변경 사유")
+    _validate_session_period(meeting, new_start, new_end)
+    _validate_session_time_conflict(meeting.id, session.id, new_start, new_end)
+
+    old_schedule = _format_session_schedule(session.start_at, session.end_at)
+    new_schedule = _format_session_schedule(new_start, new_end)
+    recipients = _session_notification_recipients(meeting)
+    title = "모임 일정이 변경되었습니다."
+    message = f"{meeting.title} 일정이 {old_schedule}에서 {new_schedule}(으)로 변경되었습니다. 사유: {reason}"
+    link_url = _meeting_chat_link_url(meeting)
+
+    try:
+        if session.original_start_at is None:
+            session.original_start_at = session.start_at
+        if session.original_end_at is None:
+            session.original_end_at = session.end_at
+        session.start_at = new_start
+        session.end_at = new_end
+        session.reschedule_reason = reason
+        for user_id in recipients:
+            create_notification(user_id, "schedule_changed", title, message, link_url, send_push=False)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        raise ValueError("같은 시작 시간의 일정이 이미 있습니다.")
+    except Exception:
+        db.session.rollback()
+        raise
+
+    _send_session_pushes(recipients, title, message, link_url)
+    return session
+
+
+def cancel_meeting_session(meeting_id, session_id, current_user_id, reason):
+    meeting, session = _get_manageable_regular_session(meeting_id, session_id, current_user_id, "취소")
+    cancellation_reason = _session_reason(reason, "취소 사유")
+    cancelled_schedule = _format_session_schedule(session.start_at, session.end_at)
+    next_session = (
+        MeetingSession.query
+        .filter_by(meeting_id=meeting.id, status="scheduled")
+        .filter(MeetingSession.id != session.id)
+        .filter(MeetingSession.start_at > session.start_at)
+        .order_by(MeetingSession.start_at.asc())
+        .first()
+    )
+    next_text = f" 다음 일정: {_format_session_schedule(next_session.start_at, next_session.end_at)}" if next_session else ""
+    recipients = _session_notification_recipients(meeting)
+    title = "모임 일정이 취소되었습니다."
+    message = f"{meeting.title}의 {cancelled_schedule} 일정이 취소되었습니다. 사유: {cancellation_reason}{next_text}"
+    link_url = _meeting_chat_link_url(meeting)
+
+    try:
+        session.status = "cancelled"
+        session.cancellation_reason = cancellation_reason
+        for user_id in recipients:
+            create_notification(user_id, "schedule_cancelled", title, message, link_url, send_push=False)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    _send_session_pushes(recipients, title, message, link_url)
+    return session
 
 
 def update_meeting(meeting_id, host_id, data):

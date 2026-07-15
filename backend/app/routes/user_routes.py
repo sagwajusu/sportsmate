@@ -178,14 +178,14 @@ def meetings_for_user(user_id, status=None, hosted=False):
     return query.order_by(Meeting.start_at.is_(None), Meeting.start_at.desc()).limit(bounded_limit()).all()
 
 
-def attach_schedule_sessions(meetings):
+def attach_schedule_sessions(meetings, include_cancelled=False):
     meeting_ids = sorted({meeting.id for meeting in meetings})
     sessions_by_meeting = {meeting_id: [] for meeting_id in meeting_ids}
     if meeting_ids:
         rows = (
             MeetingSession.query
             .filter(MeetingSession.meeting_id.in_(meeting_ids))
-            .filter(MeetingSession.status == "scheduled")
+            .filter(MeetingSession.status.in_(["scheduled", "cancelled"]) if include_cancelled else MeetingSession.status == "scheduled")
             .order_by(MeetingSession.meeting_id.asc(), MeetingSession.start_at.asc())
             .all()
         )
@@ -244,7 +244,7 @@ def my_calendar():
         db.session.rollback()
         raise
 
-    refreshed_items = {item["id"]: item for item in attach_schedule_sessions(unique_items.values())}
+    refreshed_items = {item["id"]: item for item in attach_schedule_sessions(unique_items.values(), include_cancelled=True)}
     hosted = [refreshed_items[meeting.id] for meeting in hosted_items]
     joined = [refreshed_items[meeting.id] for meeting in joined_items]
     return jsonify({"hosted": hosted, "joined": joined, "created_sessions_count": created_count})
