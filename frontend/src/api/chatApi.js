@@ -11,6 +11,7 @@ export const chatApi = {
   sendDirect: (roomId, payload) => apiClient.post(`/chatrooms/direct/${roomId}/messages`, payload).then((res) => res.data),
   mute: (roomId, roomType = "meeting") => apiClient.post("/chatrooms/mute", { room_id: roomId, room_type: roomType }).then((res) => res.data),
   unmute: (roomId, roomType = "meeting") => apiClient.post("/chatrooms/unmute", { room_id: roomId, room_type: roomType }).then((res) => res.data),
-  mutedRooms: () => apiClient.get("/chatrooms/muted").then((res) => res.data)
+  mutedRooms: () => apiClient.get("/chatrooms/muted").then((res) => res.data),
+  unreadCount: () => apiClient.get("/chatrooms/unread-count").then((res) => res.data)
 };
 
