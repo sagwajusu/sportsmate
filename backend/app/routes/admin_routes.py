@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import ChatMessage, ChatRoom, DirectChatMessage, DirectChatRoom, Meeting, Report, User, Participant, Sport
+from app.services.meeting_service import recalculate_current_participants
 from app.utils.timezone import kst_now, parse_client_datetime
 from app.utils.audit import log_admin_action
 
@@ -475,11 +476,10 @@ def kick_member(meeting_id, user_id):
     target_user_name = target_user.name or target_user.email if target_user else f"ID {user_id}"
         
     meeting = Meeting.query.get(meeting_id)
-    if meeting and participant.status == "approved":
-        meeting.current_participants = max(1, meeting.current_participants - 1)
-        meeting.sync_status()
-        
     db.session.delete(participant)
+    db.session.flush()
+    if meeting:
+        recalculate_current_participants(meeting)
     db.session.commit()
 
     from app.utils.audit import log_admin_action
@@ -562,8 +562,14 @@ def update_user(user_id):
         user.role = new_role
         if new_role == "suspended":
             user.is_active = False
-        elif user.is_active == False:
-            user.is_active = True
+        elif new_role == "pending_withdrawal":
+            # user.is_active = False # 탈퇴 대기 상태도 로그인 가능하도록
+            from app.utils.time_utils import kst_now
+            user.deleted_at = user.deleted_at or kst_now()
+        else:
+            if user.is_active == False:
+                user.is_active = True
+            user.deleted_at = None
     
     # Update User fields
     user_fields = ["name", "email", "phone_number", "nickname"]
@@ -576,8 +582,9 @@ def update_user(user_id):
         user.is_active = is_active
         if not is_active:
             user.role = "suspended"
-        elif user.role == "suspended":
+        elif user.role in ["suspended", "pending_withdrawal"]:
             user.role = "user"
+            user.deleted_at = None
             
     # Update UserProfile fields
     if "region" in data or "preferred_sports" in data:

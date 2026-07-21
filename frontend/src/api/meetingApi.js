@@ -14,6 +14,7 @@ export const meetingApi = {
   join: (id, payload = {}) => apiClient.post(`/meetings/${id}/join`, payload).then((res) => res.data),
   cancelJoin: (id) => apiClient.delete(`/meetings/${id}/join`).then((res) => res.data),
   applicants: (id) => apiClient.get(`/meetings/${id}/applicants`).then((res) => res.data),
+  getMembers: (id) => apiClient.get(`/meetings/${id}/members`).then((res) => res.data),
   approve: (meetingId, userId) =>
     apiClient.patch(`/meetings/${meetingId}/applicants/${userId}/approve`).then((res) => res.data),
   reject: (meetingId, userId) =>
@@ -27,7 +28,10 @@ export const meetingApi = {
   createVote: (id, payload) => apiClient.post(`/meetings/${id}/votes`, payload).then((res) => res.data),
   deleteNotice: (meetingId, noticeId) => apiClient.delete(`/meetings/${meetingId}/notices/${noticeId}`).then((res) => res.data),
   deleteVote: (meetingId, voteId) => apiClient.delete(`/meetings/${meetingId}/votes/${voteId}`).then((res) => res.data),
-  attendance: (id) => apiClient.get(`/meetings/${id}/attendance`).then((res) => res.data),
+  attendance: (id, params = {}) => apiClient.get(`/meetings/${id}/attendance`, { params }).then((res) => res.data),
   checkAttendance: (id, payload = {}) => apiClient.post(`/meetings/${id}/attendance/check`, payload).then((res) => res.data),
+  createAttendanceCheckinWindow: (id, sessionId) =>
+    apiClient.post(`/meetings/${id}/attendance/checkin-window`, { session_id: sessionId }).then((res) => res.data),
+  qrCheckin: (token) => apiClient.post(`/meetings/attendance/checkin/${token}`).then((res) => res.data),
   getConfig: () => apiClient.get("/meetings/config").then((res) => res.data)
 };
