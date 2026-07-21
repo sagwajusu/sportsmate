@@ -167,6 +167,27 @@ def delete_me():
         return jsonify({"message": "계정 탈퇴 처리 중 오류가 발생했습니다."}), 500
 
 
+@user_bp.post("/me/cancel-deletion")
+@jwt_required()
+def cancel_account_deletion():
+    user = user_query().get_or_404(int(get_jwt_identity()))
+    
+    if user.role != "pending_withdrawal":
+        return jsonify({"message": "탈퇴 대기 중인 계정이 아닙니다."}), 400
+        
+    try:
+        user.role = "user"
+        user.deleted_at = None
+        db.session.commit()
+        return jsonify({"message": "탈퇴가 성공적으로 철회되었습니다.", "user": user.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        from flask import current_app
+        current_app.logger.error(f"Error canceling deletion for user {user.id}: {str(e)}")
+        return jsonify({"message": "탈퇴 철회 중 오류가 발생했습니다."}), 500
+
+
+
 @user_bp.post("/me/verify-password")
 @jwt_required()
 def verify_password():

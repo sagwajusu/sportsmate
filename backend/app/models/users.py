@@ -24,6 +24,7 @@ class User(db.Model, TimestampMixin):
     profile_intro_dismissed = db.Column(db.Boolean, default=False, nullable=False)
     status = db.Column(db.String(30), default="active", nullable=False)
     withdrawn_at = db.Column(db.DateTime, nullable=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     profile = db.relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     hosted_meetings = db.relationship("Meeting", back_populates="host")
@@ -70,6 +71,7 @@ class User(db.Model, TimestampMixin):
             "remaining_withdraw_days": self.remaining_withdraw_days() if self.status == "withdrawn_pending" else None,
             "profile_intro_dismissed": self.profile_intro_dismissed,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
             "provider": self.provider,
             # 2026-07-02: 소셜 계정의 이메일 연동 여부를 프론트 분기용으로 제공.
             "has_password": "email" in provider_values,
