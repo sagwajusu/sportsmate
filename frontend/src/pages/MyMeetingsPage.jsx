@@ -9,7 +9,7 @@ import DesktopMyMeetings from "../components/profile/desktop/DesktopMyMeetings.j
 import { useAsync } from "../hooks/useAsync";
 import { useResponsive } from "../hooks/useResponsive";
 import { userApi } from "../api/userApi";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 
 function MyMeetingsPage() {
   const { isMobile } = useResponsive();
@@ -33,7 +33,7 @@ function MyMeetingsPage() {
     setParams(next);
   };
 
-  if (!isMobile) return <DesktopMyMeetings />;
+  if (!isMobile) return <Navigate to="/mypage" replace />;
 
   const now = new Date();
   const isMeetingClosed = (meeting) =>
