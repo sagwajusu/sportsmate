@@ -153,7 +153,9 @@ def delete_me():
     
     try:
         user.status = "withdrawn_pending"
+        user.role = "pending_withdrawal"
         user.withdrawn_at = kst_now()
+        user.deleted_at = kst_now()
         db.session.commit()
         return jsonify({
             "message": "30일 탈퇴 유예 기간이 시작되었습니다. 30일 이내 재로그인 시 계정을 복구할 수 있습니다.",
@@ -172,12 +174,14 @@ def delete_me():
 def cancel_account_deletion():
     user = user_query().get_or_404(int(get_jwt_identity()))
     
-    if user.role != "pending_withdrawal":
+    if user.role != "pending_withdrawal" and user.status != "withdrawn_pending":
         return jsonify({"message": "탈퇴 대기 중인 계정이 아닙니다."}), 400
         
     try:
         user.role = "user"
+        user.status = "active"
         user.deleted_at = None
+        user.withdrawn_at = None
         db.session.commit()
         return jsonify({"message": "탈퇴가 성공적으로 철회되었습니다.", "user": user.to_dict()})
     except Exception as e:
