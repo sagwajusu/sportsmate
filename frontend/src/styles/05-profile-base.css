@@ -3218,6 +3218,12 @@
   color: #b91c1c;
 }
 
+.desktop-host-participant-manager__message.is-capacity-full {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
 .desktop-host-participant-table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -3364,6 +3370,35 @@
   min-height: 120px;
   resize: vertical;
   line-height: 1.5;
+}
+
+.desktop-host-edit-feedback {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 11px 14px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.desktop-host-edit-feedback svg {
+  flex: 0 0 auto;
+}
+
+.desktop-host-edit-feedback.is-error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.desktop-host-edit-feedback.is-success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
 }
 
 .desktop-host-edit-form .form-actions {

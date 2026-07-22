@@ -11,6 +11,15 @@ function parseMeetingDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function oneTimeOperationEndAt(meeting) {
+  const explicitEnd = parseMeetingDate(meeting?.end_at);
+  if (explicitEnd) return explicitEnd;
+  const fallbackEnd = parseMeetingDate(meeting?.start_at);
+  if (!fallbackEnd) return null;
+  fallbackEnd.setHours(23, 59, 59, 999);
+  return fallbackEnd;
+}
+
 function isMeetingOperationEnded(meeting, now = new Date()) {
   if (!meeting) return false;
   if (meeting.meeting_type === "regular") {
@@ -18,7 +27,7 @@ function isMeetingOperationEnded(meeting, now = new Date()) {
     const endAt = parseMeetingDate(meeting.end_at);
     return Boolean(endAt && now >= endAt);
   }
-  const endAt = parseMeetingDate(meeting.end_at || meeting.start_at);
+  const endAt = oneTimeOperationEndAt(meeting);
   return Boolean(endAt && now >= endAt);
 }
 
@@ -56,6 +65,10 @@ function DesktopHostParticipantManager({ meetingId, meeting: meetingProp = null,
   const meeting = meetingProp || detail.data?.meeting;
   const applicantItems = applicants.data?.items || [];
   const memberItems = members.data?.items || [];
+  const capacityFull = Boolean(meeting) && (
+    meeting.status === "full"
+    || Number(meeting.current_participants || 0) >= Number(meeting.max_participants || 0)
+  );
   const kickBlocked = !meeting
     || meeting.status === "cancelled"
     || meeting.status === "suspended"
@@ -68,7 +81,7 @@ function DesktopHostParticipantManager({ meetingId, meeting: meetingProp = null,
   };
 
   const decideApplicant = async (userId, action) => {
-    if (decidingUserId !== null) return;
+    if (decidingUserId !== null || (action === "approve" && capacityFull)) return;
     setDecidingUserId(userId);
     setMessage({ text: "", tone: "notice" });
     try {
@@ -78,6 +91,9 @@ function DesktopHostParticipantManager({ meetingId, meeting: meetingProp = null,
       refreshParticipantData();
     } catch (error) {
       setMessage({ text: requestErrorMessage(error, "참가 신청을 처리하지 못했습니다."), tone: "error" });
+      if (error?.response?.data?.code === "PARTICIPANT_APPROVAL_CAPACITY_FULL") {
+        refreshParticipantData();
+      }
     } finally {
       setDecidingUserId(null);
     }
@@ -136,6 +152,11 @@ function DesktopHostParticipantManager({ meetingId, meeting: meetingProp = null,
       </div>
 
       {message.text ? <p className={`desktop-host-participant-manager__message is-${message.tone}`}>{message.text}</p> : null}
+      {capacityFull ? (
+        <p className="desktop-host-participant-manager__message is-capacity-full">
+          모임 정원이 모두 찼습니다. 자리가 생기면 대기 중인 신청자를 승인할 수 있습니다.
+        </p>
+      ) : null}
       {activeRequest.error ? (
         <p className="desktop-host-participant-manager__message is-error">
           {requestErrorMessage(activeRequest.error, "참가자 정보를 불러오지 못했습니다.")}
@@ -159,6 +180,7 @@ function DesktopHostParticipantManager({ meetingId, meeting: meetingProp = null,
               <tbody>
                 {applicantItems.map((item) => {
                   const isDeciding = decidingUserId === item.user.id;
+                  const decisionInProgress = decidingUserId !== null;
                   return (
                     <tr key={item.id}>
                       <td>
@@ -171,10 +193,15 @@ function DesktopHostParticipantManager({ meetingId, meeting: meetingProp = null,
                       <td>{formatParticipantDate(item.requested_at)}</td>
                       <td>
                         <div className="table-actions">
-                          <Button type="button" onClick={() => decideApplicant(item.user.id, "approve")} disabled={isDeciding}>
-                            {isDeciding ? "처리 중..." : "승인"}
+                          <Button
+                            type="button"
+                            onClick={() => decideApplicant(item.user.id, "approve")}
+                            disabled={decisionInProgress || capacityFull}
+                            title={capacityFull ? "모임 정원이 모두 찼습니다." : undefined}
+                          >
+                            {isDeciding ? "처리 중..." : capacityFull ? "정원 마감" : "승인"}
                           </Button>
-                          <Button type="button" variant="danger" onClick={() => decideApplicant(item.user.id, "reject")} disabled={isDeciding}>
+                          <Button type="button" variant="danger" onClick={() => decideApplicant(item.user.id, "reject")} disabled={decisionInProgress}>
                             거절
                           </Button>
                         </div>

@@ -1,3 +1,5 @@
+from datetime import datetime, time
+
 from app.utils.timezone import kst_now
 
 
@@ -22,7 +24,11 @@ def meeting_operation_end_at(meeting):
         return None
 
     if meeting.meeting_type == "one_time":
-        return meeting.end_at or meeting.start_at
+        if meeting.end_at:
+            return meeting.end_at
+        if meeting.start_at:
+            return datetime.combine(meeting.start_at.date(), time(23, 59, 59))
+        return None
 
     if meeting.meeting_type == "regular":
         if not meeting.end_at:
@@ -56,7 +62,6 @@ def validate_meeting_can_reopen_recruitment(meeting, now=None):
 def meeting_chat_is_read_only(meeting):
     if not meeting:
         return False
-    if meeting.status in {"closed", "cancelled", "suspended"}:
+    if meeting.status in {"cancelled", "suspended"}:
         return True
-    end_at = meeting.end_at or meeting.start_at
-    return bool(end_at and end_at <= kst_now())
+    return is_meeting_operation_ended(meeting)

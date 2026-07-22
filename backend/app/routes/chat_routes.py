@@ -20,7 +20,7 @@ from app.services.chat_service import (
     send_direct_message,
     send_message,
 )
-from app.services.meeting_service import recalculate_current_participants
+from app.services.meeting_service import get_meeting_for_update, get_participant_for_update, recalculate_current_participants
 from app.utils.meeting_state import meeting_chat_is_read_only
 
 chat_bp = Blueprint("chat", __name__)
@@ -441,12 +441,12 @@ def leave_room(room_id):
         room = ensure_chat_access(room_id, user_id)
         if room.meeting and room.meeting.host_id == user_id:
             return jsonify({"message": "방장은 채팅방만 나갈 수 없습니다. 모임 관리에서 모임을 취소하거나 방장을 위임해주세요."}), 400
-        participant = Participant.query.filter_by(meeting_id=room.meeting_id, user_id=user_id, status="approved").first()
-        if not participant:
+        meeting = get_meeting_for_update(room.meeting_id)
+        participant = get_participant_for_update(room.meeting_id, user_id)
+        if participant.status != "approved":
             return jsonify({"message": "이미 나간 채팅방입니다."}), 400
         participant.status = "cancelled"
-        if room.meeting:
-            recalculate_current_participants(room.meeting)
+        recalculate_current_participants(meeting)
         db.session.add(ChatMessage(
             chat_room_id=room.id,
             user_id=user_id,

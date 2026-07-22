@@ -9,7 +9,25 @@ from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import Attendance, ChatMessage, ChatRoom, Meeting, MeetingSession, Notice, Participant, Review, Sport, User, Vote, VoteOption, VoteResponse
-from app.services.meeting_service import cancel_meeting_session, close_expired_one_time_meetings, create_meeting, create_review, get_next_meeting_session, join_meeting, kick_meeting_member, list_meeting_members, list_meeting_sessions, list_meetings, recalculate_current_participants, update_application, update_meeting, update_meeting_session
+from app.services.meeting_service import (
+    MeetingConflictError,
+    cancel_meeting_session,
+    close_expired_one_time_meetings,
+    create_meeting,
+    create_review,
+    get_meeting_for_update,
+    get_next_meeting_session,
+    get_participant_for_update,
+    join_meeting,
+    kick_meeting_member,
+    list_meeting_members,
+    list_meeting_sessions,
+    list_meetings,
+    recalculate_current_participants,
+    update_application,
+    update_meeting,
+    update_meeting_session,
+)
 from app.utils.meeting_state import is_meeting_operation_ended, meeting_chat_is_read_only
 from app.utils.timezone import kst_now, parse_client_datetime
 
@@ -172,6 +190,8 @@ def update(meeting_id):
     try:
         meeting = update_meeting(meeting_id, int(get_jwt_identity()), request.get_json() or {})
         return jsonify({"meeting": meeting.to_dict()})
+    except MeetingConflictError as error:
+        return jsonify({"message": str(error), "code": error.code}), 409
     except PermissionError as error:
         return jsonify({"message": str(error)}), 403
     except ValueError as error:
@@ -181,7 +201,7 @@ def update(meeting_id):
 @meeting_bp.delete("/<int:meeting_id>")
 @jwt_required()
 def delete(meeting_id):
-    meeting = Meeting.query.get_or_404(meeting_id)
+    meeting = get_meeting_for_update(meeting_id)
     if meeting.host_id != int(get_jwt_identity()):
         return jsonify({"message": "방장만 취소할 수 있습니다."}), 403
     meeting.status = "cancelled"
@@ -203,27 +223,26 @@ def join(meeting_id):
 @meeting_bp.delete("/<int:meeting_id>/join")
 @jwt_required()
 def cancel_join(meeting_id):
-    participant = Participant.query.filter_by(meeting_id=meeting_id, user_id=int(get_jwt_identity())).first_or_404()
+    meeting = get_meeting_for_update(meeting_id)
+    participant = get_participant_for_update(meeting_id, int(get_jwt_identity()))
     original_status = participant.status
 
-    if participant.meeting and (participant.meeting.host_id == participant.user_id or participant.role == "host"):
+    if meeting.host_id == participant.user_id or participant.role == "host":
         return jsonify({"message": "방장은 모임에서 나갈 수 없습니다."}), 400
 
     if original_status not in {"pending", "approved"}:
         return jsonify({"message": "취소할 수 없는 참여 상태입니다."}), 400
 
     if original_status == "approved":
-        meeting = participant.meeting
-        if meeting:
-            if meeting.status == "cancelled":
-                return jsonify({"message": "취소된 모임에서는 나갈 수 없습니다."}), 400
-            if meeting.status == "suspended":
-                return jsonify({"message": "운영 중지된 모임에서는 나갈 수 없습니다."}), 400
-            if is_meeting_operation_ended(meeting):
-                return jsonify({"message": "종료된 모임에서는 나갈 수 없습니다."}), 400
-            participant.status = "cancelled"
-            recalculate_current_participants(meeting)
-            add_meeting_system_message(meeting, participant.user_id, f"{user_display_name(participant.user)}님이 나가셨습니다.")
+        if meeting.status == "cancelled":
+            return jsonify({"message": "취소된 모임에서는 나갈 수 없습니다."}), 400
+        if meeting.status == "suspended":
+            return jsonify({"message": "운영 중지된 모임에서는 나갈 수 없습니다."}), 400
+        if is_meeting_operation_ended(meeting):
+            return jsonify({"message": "종료된 모임에서는 나갈 수 없습니다."}), 400
+        participant.status = "cancelled"
+        recalculate_current_participants(meeting)
+        add_meeting_system_message(meeting, participant.user_id, f"{user_display_name(participant.user)}님이 나가셨습니다.")
     else:
         participant.status = "cancelled"
 
@@ -262,6 +281,8 @@ def approve(meeting_id, user_id):
     try:
         participant = update_application(meeting_id, user_id, int(get_jwt_identity()), "approved")
         return jsonify({"participant": participant.to_dict()})
+    except MeetingConflictError as error:
+        return jsonify({"message": str(error), "code": error.code}), 409
     except (ValueError, PermissionError) as error:
         return jsonify({"message": str(error)}), 400
 

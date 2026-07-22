@@ -30,6 +30,11 @@ class LoginProviderMismatchError(ValueError):
         super().__init__(messages[registered_provider])
 
 
+class AuthUserIdMismatchError(ValueError):
+    def __init__(self):
+        super().__init__("계정 연결 정보를 확인할 수 없습니다. 관리자에게 문의해 주세요.")
+
+
 class InvalidStoredProviderError(ValueError):
     pass
 
@@ -132,6 +137,8 @@ def sync_supabase_user(data):
     user = User.query.options(joinedload(User.profile)).filter_by(auth_user_id=auth_user_id).first()
     if not user:
         user = User.query.options(joinedload(User.profile)).filter_by(email=email).first()
+        if user and user.auth_user_id is not None and user.auth_user_id != auth_user_id:
+            raise AuthUserIdMismatchError()
     is_new_user = user is None
     if is_new_user and login_provider not in {"email", "google", "kakao"}:
         raise LoginProviderRequiredError("가입 방식을 확인할 수 없습니다. 다시 로그인해주세요.")

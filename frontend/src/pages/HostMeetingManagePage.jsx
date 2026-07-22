@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Camera,
   CalendarDays,
+  CircleAlert,
+  CircleCheck,
   ClipboardCheck,
   Edit3,
   MapPin,
@@ -59,7 +61,12 @@ function formatAttendanceSession(session) {
 function getMeetingOperationEndAt(meeting) {
   if (!meeting) return null;
   if (meeting.meeting_type === "one_time") {
-    return parseMeetingDate(meeting.end_at) || parseMeetingDate(meeting.start_at);
+    const explicitEnd = parseMeetingDate(meeting.end_at);
+    if (explicitEnd) return explicitEnd;
+    const fallbackEnd = parseMeetingDate(meeting.start_at);
+    if (!fallbackEnd) return null;
+    fallbackEnd.setHours(23, 59, 59, 999);
+    return fallbackEnd;
   }
   if (meeting.meeting_type === "regular") {
     if (meeting.next_session) return null;
@@ -296,7 +303,7 @@ function formatMeetingDate(dateStr) {
       weekday: "short",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false
+      hour12: true
     }).format(d);
   } catch {
     return dateStr;
@@ -584,6 +591,7 @@ function DesktopHostMeetingManage({ meeting, notice, noticeItems, noticesLoading
     end_at: meeting.end_at?.slice(0, 16) || "",
     max_participants: meeting.max_participants || 2
   });
+  const [editFeedback, setEditFeedback] = useState(null);
 
   const isTimeInvalid = Boolean(editForm.start_at && editForm.end_at && new Date(editForm.end_at) <= new Date(editForm.start_at));
 
@@ -611,17 +619,32 @@ function DesktopHostMeetingManage({ meeting, notice, noticeItems, noticesLoading
   const submitEdit = async (e) => {
     e.preventDefault();
     if (isTimeInvalid) return;
+    setEditFeedback(null);
     const maxPartCount = Number(editForm.max_participants);
     if (maxPartCount > maxLimit) {
-      return alert(`최대 정원은 ${maxLimit}명 이하로만 설정 가능합니다.`);
+      setEditFeedback({ type: "error", message: `최대 정원은 ${maxLimit}명 이하로만 설정 가능합니다.` });
+      return;
     }
-    await meetingApi.update(meeting.id, {
-      ...editForm,
-      sport_id: Number(editForm.sport_id),
-      max_participants: maxPartCount
-    });
-    alert("모임 정보가 수정되었습니다.");
-    window.location.reload();
+    if (maxPartCount < current) {
+      setEditFeedback({ type: "error", message: "현재 승인된 참가 인원보다 최대 정원을 작게 설정할 수 없습니다." });
+      return;
+    }
+
+    try {
+      await meetingApi.update(meeting.id, {
+        ...editForm,
+        sport_id: Number(editForm.sport_id),
+        max_participants: maxPartCount
+      });
+      setEditFeedback({ type: "success", message: "모임 정보가 수정되었습니다." });
+      onMeetingUpdated?.();
+    } catch (error) {
+      const response = error.response?.data;
+      const message = response?.code === "MAX_PARTICIPANTS_BELOW_APPROVED_COUNT"
+        ? "현재 승인된 참가 인원보다 최대 정원을 작게 설정할 수 없습니다."
+        : response?.message || "모임 정보 수정에 실패했습니다. 다시 시도해 주세요.";
+      setEditFeedback({ type: "error", message });
+    }
   };
 
   // 2. 신청자 관리 관련 API 호출
@@ -868,7 +891,17 @@ function DesktopHostMeetingManage({ meeting, notice, noticeItems, noticesLoading
                   </div>
                   <div className="form-group">
                     <label htmlFor="max_participants">정원 (2~{maxLimit}명)</label>
-                    <input id="max_participants" type="number" min="2" max={maxLimit} value={editForm.max_participants} onChange={(e) => setEditForm({ ...editForm, max_participants: e.target.value })} />
+                    <input
+                      id="max_participants"
+                      type="number"
+                      min="2"
+                      max={maxLimit}
+                      value={editForm.max_participants}
+                      onChange={(e) => {
+                        setEditForm({ ...editForm, max_participants: e.target.value });
+                        setEditFeedback(null);
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -913,6 +946,16 @@ function DesktopHostMeetingManage({ meeting, notice, noticeItems, noticesLoading
                   </div>
                 </div>
               </div>
+
+              {editFeedback ? (
+                <div
+                  className={`desktop-host-edit-feedback is-${editFeedback.type}`}
+                  role={editFeedback.type === "error" ? "alert" : "status"}
+                >
+                  {editFeedback.type === "error" ? <CircleAlert size={18} /> : <CircleCheck size={18} />}
+                  <span>{editFeedback.message}</span>
+                </div>
+              ) : null}
 
               <div className="form-actions">
                 <button
