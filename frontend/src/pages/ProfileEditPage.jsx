@@ -787,7 +787,7 @@ function MobileProfileEditPage() {
               <XCircle size={18} color="#ef4444" />
               <div>
                 <h2 style={{ color: '#ef4444' }}>회원 탈퇴</h2>
-                <p style={{ color: '#f87171' }}>탈퇴 요청은 최종 확인 후 처리됩니다.</p>
+                <p style={{ color: '#f87171' }}>계정을 삭제하면 모든 프로필 정보 및 활동 기록이 완전히 삭제되며 복구할 수 없습니다.</p>
               </div>
             </div>
             <button 
