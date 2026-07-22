@@ -24,7 +24,11 @@ def meeting_operation_end_at(meeting):
         return None
 
     if meeting.meeting_type == "one_time":
-        return meeting.end_at or meeting.start_at
+        if meeting.end_at:
+            return meeting.end_at
+        if meeting.start_at:
+            return datetime.combine(meeting.start_at.date(), time(23, 59, 59))
+        return None
 
     if meeting.meeting_type == "regular":
         if not meeting.end_at:

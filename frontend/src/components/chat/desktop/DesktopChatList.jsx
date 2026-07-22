@@ -17,6 +17,16 @@ function formatChatTime(value) {
   }).format(new Date(value));
 }
 
+function meetingOperationEndTime(meeting) {
+  const explicitEnd = new Date(meeting?.end_at || "");
+  if (Number.isFinite(explicitEnd.getTime())) return explicitEnd.getTime();
+  if (meeting?.meeting_type !== "one_time" || !meeting?.start_at) return null;
+  const fallbackEnd = new Date(meeting.start_at);
+  if (!Number.isFinite(fallbackEnd.getTime())) return null;
+  fallbackEnd.setHours(23, 59, 59, 999);
+  return fallbackEnd.getTime();
+}
+
 function isReadOnlyRoom(room) {
   if (typeof room?.is_read_only === "boolean") return room.is_read_only;
   if (typeof room?.meeting?.is_chat_read_only === "boolean") return room.meeting.is_chat_read_only;

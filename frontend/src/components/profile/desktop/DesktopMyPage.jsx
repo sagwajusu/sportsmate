@@ -33,6 +33,7 @@ import { getDesktopScheduleState } from "../../schedule/desktop/DesktopScheduleC
 import { weatherApi } from "../../../api/weatherApi";
 import { useAuth } from "../../../contexts/AuthContext.jsx";
 import { useAsync } from "../../../hooks/useAsync";
+import { formatKoreanTime } from "../../../utils/formatters";
 
 const PROFILE_INTRO_MAX_LENGTH = 30;
 const PROFILE_INTRO_EMPTY_TEXT = "아직 한 줄 소개가 없습니다.";
@@ -75,9 +76,7 @@ function formatDateTime(value) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${month}.${day}(${weekday}) ${hours}:${minutes}`;
+  return `${month}.${day}(${weekday}) ${formatKoreanTime(date)}`;
 }
 
 function validDate(value) {

@@ -1,5 +1,6 @@
 import { CalendarClock, CalendarX, Crown, FileText, LayoutDashboard, MessageCircle, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatKoreanTime } from "../../../utils/formatters";
 import { isMeetingLifecycleEnded } from "../../../utils/meetingLifecycle.js";
 
 const ACTION_ICONS = {
@@ -23,6 +24,13 @@ function isSameDay(a, b) {
     && a.getDate() === b.getDate();
 }
 
+function endOfScheduleDay(value) {
+  const date = validScheduleDate(value);
+  if (!date) return null;
+  date.setHours(23, 59, 59, 999);
+  return date;
+}
+
 function getDday(value) {
   const target = validScheduleDate(value);
   if (!target) return "D-?";
@@ -44,12 +52,9 @@ export function getDesktopScheduleState(item) {
   }
   const now = new Date();
   const start = validScheduleDate(item.startAt ?? item.rawTime);
-  const end = validScheduleDate(item.endAt ?? item.endTime);
-  const isRegular = (item.meetingType ?? item.meeting_type) === "regular";
-
-  if (isMeetingLifecycleEnded(item, now)) {
-    return { label: "종료됨", isEnded: true, state: "ended" };
-  }
+  const explicitEnd = validScheduleDate(item.endAt ?? item.endTime);
+  const end = explicitEnd || (item.meetingType === "one_time" ? endOfScheduleDay(start) : null);
+  const operationEnd = validScheduleDate(item.operationEndAt);
 
   if (!start) {
     return { label: isRegular ? "다음 일정 준비" : "예정 없음", isEnded: false, state: "unscheduled" };
@@ -75,6 +80,10 @@ export function formatScheduleTime(value) {
   const date = validScheduleDate(value);
   if (!date) return "시간 미정";
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+export function formatScheduleTimeLabel(value) {
+  return formatKoreanTime(value) || "시간 미정";
 }
 
 function ScheduleAction({ action }) {
@@ -104,7 +113,7 @@ function DesktopScheduleCard({ item, actions = [], highlighted = false, chatbotH
           {isManaged && <span className="desktop-schedule-card__badge is-managed">현재 관리 중</span>}
           <span className={`desktop-schedule-card__badge is-state is-${scheduleState.state}`}>{scheduleState.label}</span>
         </div>
-        <span className="desktop-schedule-card__time">{formatScheduleTime(startAt)}</span>
+        <span className="desktop-schedule-card__time">{formatScheduleTimeLabel(startAt)}</span>
         <h3>{item.title}</h3>
         <p>{item.location ?? item.place} · {item.currentParticipants ?? item.current_participants ?? 0}/{item.maxParticipants ?? item.max_participants ?? 0}명</p>
         {item.sessionStatus === "cancelled" && (

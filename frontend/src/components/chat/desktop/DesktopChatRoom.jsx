@@ -139,6 +139,16 @@ function isSystemMessage(message) {
   return ["notice", "system"].includes(message?.message_type);
 }
 
+function meetingOperationEndTime(meeting) {
+  const explicitEnd = new Date(meeting?.end_at || "");
+  if (Number.isFinite(explicitEnd.getTime())) return explicitEnd.getTime();
+  if (meeting?.meeting_type !== "one_time" || !meeting?.start_at) return null;
+  const fallbackEnd = new Date(meeting.start_at);
+  if (!Number.isFinite(fallbackEnd.getTime())) return null;
+  fallbackEnd.setHours(23, 59, 59, 999);
+  return fallbackEnd.getTime();
+}
+
 function isReadOnlyRoomItem(item) {
   if (typeof item?.is_read_only === "boolean") return item.is_read_only;
   if (typeof item?.meeting?.is_chat_read_only === "boolean") return item.meeting.is_chat_read_only;
