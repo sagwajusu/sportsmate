@@ -41,6 +41,10 @@ class MaxParticipantsBelowApprovedCountError(MeetingConflictError):
         super().__init__("현재 승인된 참가 인원보다 최대 정원을 작게 설정할 수 없습니다.")
 
 
+class ReviewNotFoundError(ValueError):
+    pass
+
+
 def get_meeting_for_update(meeting_id):
     return Meeting.query.filter_by(id=meeting_id).with_for_update().first_or_404()
 
@@ -1321,7 +1325,7 @@ def create_review(meeting_id, user_id, data):
     avg_rating = db.session.query(db.func.avg(Review.rating)).filter_by(reviewee_id=reviewee_id).scalar() or 0.0
     profile = UserProfile.query.filter_by(user_id=reviewee_id).first()
     if profile:
-        profile.rating_average = round(float(avg_rating), 1)
+        profile.rating_average = round(float(avg_rating), 2)
         db.session.commit()
 
     return review
@@ -1428,7 +1432,7 @@ def update_review(review_id, user_id, data):
     avg_rating = db.session.query(db.func.avg(Review.rating)).filter_by(reviewee_id=review.reviewee_id).scalar() or 0.0
     profile = UserProfile.query.filter_by(user_id=review.reviewee_id).first()
     if profile:
-        profile.rating_average = round(float(avg_rating), 1)
+        profile.rating_average = round(float(avg_rating), 2)
         db.session.commit()
         
     return review
@@ -1437,18 +1441,21 @@ def update_review(review_id, user_id, data):
 def delete_review(review_id, user_id):
     review = Review.query.get(review_id)
     if not review:
-        raise ValueError("존재하지 않는 후기입니다.")
+        raise ReviewNotFoundError("존재하지 않는 후기입니다.")
     if review.reviewer_id != user_id:
         raise PermissionError("본인이 작성한 후기만 삭제할 수 있습니다.")
-        
-    reviewee_id = review.reviewee_id
-    db.session.delete(review)
-    db.session.commit()
-    
-    # Recalculate average rating for reviewee
-    from app.models.users import UserProfile
-    avg_rating = db.session.query(db.func.avg(Review.rating)).filter_by(reviewee_id=reviewee_id).scalar() or 0.0
-    profile = UserProfile.query.filter_by(user_id=reviewee_id).first()
-    if profile:
-        profile.rating_average = round(float(avg_rating), 1)
+
+    try:
+        reviewee_id = review.reviewee_id
+        db.session.delete(review)
+
+        # The aggregate query autoflushes the pending delete before calculating.
+        from app.models.users import UserProfile
+        avg_rating = db.session.query(db.func.avg(Review.rating)).filter_by(reviewee_id=reviewee_id).scalar() or 0.0
+        profile = UserProfile.query.filter_by(user_id=reviewee_id).first()
+        if profile:
+            profile.rating_average = round(float(avg_rating), 2)
         db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
