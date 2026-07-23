@@ -7,6 +7,11 @@ import {
   attendanceSessionSignature,
   evaluateQrAttendance,
 } from "../../utils/attendancePolicy.js";
+import {
+  buildAttendanceCheckinUrl,
+  isLoopbackQrOrigin,
+  resolveQrPublicOrigin,
+} from "../../utils/qrUrl.js";
 
 function formatRemaining(milliseconds) {
   if (milliseconds <= 0) return "종료됨";
@@ -14,15 +19,6 @@ function formatRemaining(milliseconds) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}분 ${String(seconds).padStart(2, "0")}초 남음`;
-}
-
-function getQrPublicOrigin() {
-  const configuredOrigin = import.meta.env.VITE_QR_PUBLIC_ORIGIN?.trim().replace(/\/$/, "");
-  if (configuredOrigin) return configuredOrigin;
-  if (import.meta.env.DEV && ["localhost", "127.0.0.1"].includes(window.location.hostname)) {
-    return "http://192.168.10.4:5173";
-  }
-  return window.location.origin;
 }
 
 function formatPolicyTime(value) {
@@ -63,11 +59,20 @@ function AttendanceQrPanel({ meetingId, session, onRefreshSession }) {
 
   const policy = evaluateQrAttendance(session, now);
   const expired = policy.code === "WINDOW_CLOSED";
-  const qrPublicOrigin = useMemo(() => getQrPublicOrigin(), []);
-  const checkinUrl = useMemo(
-    () => (token ? `${qrPublicOrigin}/attendance/checkin/${encodeURIComponent(token)}` : ""),
-    [qrPublicOrigin, token],
+  const configuredQrOrigin = import.meta.env.VITE_QR_PUBLIC_ORIGIN;
+  const qrPublicOrigin = useMemo(
+    () => resolveQrPublicOrigin(configuredQrOrigin, window.location.origin),
+    [configuredQrOrigin],
   );
+  const checkinUrl = useMemo(
+    () => buildAttendanceCheckinUrl({
+      token,
+      configuredOrigin: configuredQrOrigin,
+      currentOrigin: window.location.origin,
+    }),
+    [configuredQrOrigin, token],
+  );
+  const showLocalhostGuide = isLoopbackQrOrigin(qrPublicOrigin);
 
   const createQr = async () => {
     setLoading(true);
@@ -101,6 +106,9 @@ function AttendanceQrPanel({ meetingId, session, onRefreshSession }) {
               : "사용 불가"}
         </strong>
       </div>
+      {showLocalhostGuide ? (
+        <small>휴대폰에서 테스트하려면 PC의 LAN IP로 접속하거나 VITE_QR_PUBLIC_ORIGIN을 설정해 주세요.</small>
+      ) : null}
 
       {token && policy.allowed ? (
         <div className="attendance-qr-panel__code">
