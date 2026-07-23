@@ -26,6 +26,7 @@ from app.services.meeting_service import (
     list_meeting_sessions,
     list_meetings,
     recalculate_current_participants,
+    refresh_user_attendance_rate,
     update_application,
     update_meeting,
     update_meeting_session,
@@ -214,6 +215,8 @@ def patch_session(meeting_id, session_id):
             request.get_json() or {},
         )
         return jsonify({"message": "일정이 변경되었습니다.", "item": item.to_dict()})
+    except MeetingConflictError as error:
+        return jsonify({"message": str(error), "code": error.code}), 409
     except LookupError as error:
         return jsonify({"message": str(error)}), 404
     except PermissionError as error:
@@ -655,27 +658,6 @@ def resolve_attendance_session(meeting, requested_session_id=None):
     if not current_sessions:
         return None, current_sessions, past_sessions
     return current_sessions[0], current_sessions, past_sessions
-
-
-def refresh_user_attendance_rate(user_id):
-    decided = (
-        Attendance.query
-        .join(MeetingSession, Attendance.meeting_session_id == MeetingSession.id)
-        .filter(
-            Attendance.user_id == user_id,
-            Attendance.meeting_session_id.isnot(None),
-            Attendance.status.in_(["present", "absent"]),
-            MeetingSession.status != "cancelled",
-            MeetingSession.start_at <= kst_now(),
-        )
-    )
-    total_count = decided.count()
-    present_count = decided.filter(Attendance.status == "present").count()
-    rate = round((present_count / total_count) * 100, 1) if total_count else 0.0
-    user = User.query.get(user_id)
-    if user and user.profile:
-        user.profile.attendance_rate = rate
-    return rate
 
 
 def attendance_policy_response(result, default_status=409):

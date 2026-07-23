@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
-from app.models import Attendance, ChatMessage, ChatRoom, Meeting, MeetingSession, Notice, Participant, Review, Sport, User
+from app.models import Attendance, AttendanceCheckinWindow, ChatMessage, ChatRoom, Meeting, MeetingSession, Notice, Participant, Review, Sport, User
 from app.services.notification_service import create_notification, send_web_push
 from app.utils.meeting_state import is_meeting_operation_ended, validate_meeting_can_reopen_recruitment
 from app.utils.timezone import kst_now, parse_client_datetime
@@ -39,6 +39,13 @@ class MaxParticipantsBelowApprovedCountError(MeetingConflictError):
 
     def __init__(self):
         super().__init__("현재 승인된 참가 인원보다 최대 정원을 작게 설정할 수 없습니다.")
+
+
+class FutureSessionAttendanceConflictError(MeetingConflictError):
+    code = "FUTURE_SESSION_ATTENDANCE_EXISTS"
+
+    def __init__(self):
+        super().__init__("미래 회차에 이미 출석 기록이 있어 일정을 변경할 수 없습니다.")
 
 
 class ReviewNotFoundError(ValueError):
@@ -668,7 +675,12 @@ def _get_manageable_regular_session(meeting_id, session_id, current_user_id, act
     if meeting.meeting_type != "regular":
         raise ValueError("정기모임 일정만 관리할 수 있습니다.")
 
-    session = MeetingSession.query.filter_by(id=session_id, meeting_id=meeting_id).first()
+    session = (
+        MeetingSession.query
+        .filter_by(id=session_id, meeting_id=meeting_id)
+        .with_for_update()
+        .first()
+    )
     if not session:
         raise LookupError("일정을 찾을 수 없습니다.")
     if session.status != "scheduled":
@@ -708,6 +720,48 @@ def _validate_session_time_conflict(meeting_id, session_id, new_start, new_end):
         raise ValueError("같은 모임 안에 시간이 겹치는 일정이 있습니다.")
 
 
+def _deactivate_session_checkin_windows(session_id):
+    return (
+        AttendanceCheckinWindow.query
+        .filter_by(meeting_session_id=session_id, is_active=True)
+        .update({"is_active": False}, synchronize_session=False)
+    )
+
+
+def refresh_user_attendance_rate(user_id, now=None):
+    decided = (
+        Attendance.query
+        .join(MeetingSession, Attendance.meeting_session_id == MeetingSession.id)
+        .filter(
+            Attendance.user_id == user_id,
+            Attendance.meeting_session_id.isnot(None),
+            Attendance.status.in_(["present", "absent"]),
+            MeetingSession.status != "cancelled",
+            MeetingSession.start_at <= (now or kst_now()),
+        )
+    )
+    total_count = decided.count()
+    present_count = decided.filter(Attendance.status == "present").count()
+    rate = round((present_count / total_count) * 100, 1) if total_count else 0.0
+    user = User.query.get(user_id)
+    if user and user.profile:
+        user.profile.attendance_rate = rate
+    return rate
+
+
+def _session_attendance_user_ids(session_id):
+    return [
+        user_id
+        for user_id, in (
+            Attendance.query
+            .with_entities(Attendance.user_id)
+            .filter_by(meeting_session_id=session_id)
+            .distinct()
+            .all()
+        )
+    ]
+
+
 def update_meeting_session(meeting_id, session_id, current_user_id, data):
     meeting, session = _get_manageable_regular_session(meeting_id, session_id, current_user_id, "변경")
     new_start = parse_datetime(data.get("start_at"))
@@ -724,6 +778,8 @@ def update_meeting_session(meeting_id, session_id, current_user_id, data):
         raise ValueError("현재 이후의 시간으로만 변경할 수 있습니다.")
     if session.start_at == new_start and session.end_at == new_end:
         return session
+    if Attendance.query.filter_by(meeting_session_id=session.id).first():
+        raise FutureSessionAttendanceConflictError()
 
     reason = _session_reason(data.get("reason"), "변경 사유")
     _validate_session_period(meeting, new_start, new_end)
@@ -752,6 +808,7 @@ def update_meeting_session(meeting_id, session_id, current_user_id, data):
         session.start_at = new_start
         session.end_at = new_end
         session.reschedule_reason = reason
+        _deactivate_session_checkin_windows(session.id)
         chat_room = _meeting_chat_room(meeting)
         link_url = f"/chats/{chat_room.id}"
         for user_id in recipients:
@@ -803,8 +860,12 @@ def cancel_meeting_session(meeting_id, session_id, current_user_id, reason):
         notice_content += f"\n다음 일정: {_format_session_schedule(next_session.start_at, next_session.end_at)}"
 
     try:
+        affected_user_ids = _session_attendance_user_ids(session.id)
         session.status = "cancelled"
         session.cancellation_reason = cancellation_reason
+        _deactivate_session_checkin_windows(session.id)
+        for user_id in affected_user_ids:
+            refresh_user_attendance_rate(user_id)
         chat_room = _meeting_chat_room(meeting)
         link_url = f"/chats/{chat_room.id}"
         for user_id in recipients:

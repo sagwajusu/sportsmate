@@ -7,6 +7,7 @@ from flask import Flask
 
 from app.extensions import db
 from app.routes import meeting_routes
+from app.services import meeting_service
 
 
 class AttendanceRouteTests(unittest.TestCase):
@@ -52,6 +53,21 @@ class AttendanceRouteTests(unittest.TestCase):
         session_query.filter_by.assert_called_once_with(id=10, meeting_id=4)
         session_query.filter_by.return_value.populate_existing.assert_called_once_with()
         session_query.filter_by.return_value.populate_existing.return_value.with_for_update.assert_called_once_with()
+
+    def test_future_attendance_schedule_conflict_returns_409(self):
+        error = meeting_service.FutureSessionAttendanceConflictError()
+
+        with self.app.test_request_context(json={
+            "start_at": "2026-07-24T19:00:00",
+            "end_at": "2026-07-24T20:00:00",
+            "reason": "일정 변경",
+        }), \
+             patch.object(meeting_routes, "get_jwt_identity", return_value="1"), \
+             patch.object(meeting_routes, "update_meeting_session", side_effect=error):
+            response, status = meeting_routes.patch_session.__wrapped__(4, 10)
+
+        self.assertEqual(status, 409)
+        self.assertEqual(response.get_json()["code"], "FUTURE_SESSION_ATTENDANCE_EXISTS")
 
     def test_host_cannot_mark_future_session(self):
         participant_query = MagicMock()
