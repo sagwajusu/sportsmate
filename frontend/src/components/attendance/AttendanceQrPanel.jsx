@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Clock3, QrCode } from "lucide-react";
 import Button from "../common/Button.jsx";
 import { meetingApi } from "../../api/meetingApi";
+import {
+  attendanceSessionSignature,
+  evaluateQrAttendance,
+} from "../../utils/attendancePolicy.js";
 
 function formatRemaining(milliseconds) {
   if (milliseconds <= 0) return "종료됨";
@@ -21,22 +25,44 @@ function getQrPublicOrigin() {
   return window.location.origin;
 }
 
-function AttendanceQrPanel({ meetingId, session }) {
+function formatPolicyTime(value) {
+  if (!value) return "";
+  return value.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Seoul",
+  });
+}
+
+function AttendanceQrPanel({ meetingId, session, onRefreshSession }) {
   const [checkinWindow, setCheckinWindow] = useState(null);
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [now, setNow] = useState(Date.now());
+  const signature = attendanceSessionSignature(session);
+  const previousSignatureRef = useRef(signature);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
 
-  const startAt = session?.start_at ? new Date(session.start_at).getTime() : 0;
-  const closesAt = startAt ? startAt + 30 * 60 * 1000 : 0;
-  const expired = Boolean(closesAt && now >= closesAt);
-  const beforeStart = Boolean(startAt && now < startAt);
+  useEffect(() => {
+    if (previousSignatureRef.current && previousSignatureRef.current !== signature) {
+      setToken((currentToken) => {
+        if (currentToken) {
+          setError("일정이 변경되어 기존 QR이 만료되었습니다. 새 QR을 발급해 주세요.");
+        }
+        return "";
+      });
+      setCheckinWindow(null);
+    }
+    previousSignatureRef.current = signature;
+  }, [signature]);
+
+  const policy = evaluateQrAttendance(session, now);
+  const expired = policy.code === "WINDOW_CLOSED";
   const qrPublicOrigin = useMemo(() => getQrPublicOrigin(), []);
   const checkinUrl = useMemo(
     () => (token ? `${qrPublicOrigin}/attendance/checkin/${encodeURIComponent(token)}` : ""),
@@ -47,6 +73,7 @@ function AttendanceQrPanel({ meetingId, session }) {
     setLoading(true);
     setError("");
     try {
+      await onRefreshSession?.();
       const data = await meetingApi.createAttendanceCheckinWindow(meetingId, session.id);
       setCheckinWindow(data.window);
       setToken(data.token);
@@ -67,20 +94,20 @@ function AttendanceQrPanel({ meetingId, session }) {
           <p>참여자가 휴대폰 카메라로 스캔하면 이 회차에 바로 출석 처리됩니다.</p>
         </div>
         <strong className={expired ? "expired" : ""}>
-          <Clock3 size={15} /> {formatRemaining(closesAt - now)}
+          <Clock3 size={15} /> {policy.allowed
+            ? formatRemaining(policy.closesAt.getTime() - now)
+            : policy.code === "TOO_EARLY"
+              ? "발급 대기"
+              : "사용 불가"}
         </strong>
       </div>
 
-      {token && !expired ? (
+      {token && policy.allowed ? (
         <div className="attendance-qr-panel__code">
           <QRCodeSVG value={checkinUrl} size={220} level="M" includeMargin />
           <div>
-            <strong>{beforeStart ? "사전 QR 체크인 진행 중" : "QR 체크인 진행 중"}</strong>
-            <p>
-              {beforeStart
-                ? "QR 생성 직후부터 참여자가 미리 체크인할 수 있습니다."
-                : "모임 시작 후 30분까지 체크인할 수 있습니다."}
-            </p>
+            <strong>QR 체크인 진행 중</strong>
+            <p>현재 회차의 출석 가능 시간 동안 체크인할 수 있습니다.</p>
             <Button type="button" onClick={createQr} disabled={loading}>
               {loading ? "재발급 중" : "QR 새로 발급"}
             </Button>
@@ -88,13 +115,15 @@ function AttendanceQrPanel({ meetingId, session }) {
         </div>
       ) : (
         <div className="attendance-qr-panel__empty">
-          <p>{expired ? "이 회차의 QR 체크인 가능 시간이 종료되었습니다." : "QR을 생성해 참여자에게 보여주세요."}</p>
-          <Button type="button" onClick={createQr} disabled={loading || expired}>
+          <p>{policy.allowed ? "QR을 생성해 참여자에게 보여주세요." : policy.message}</p>
+          <Button type="button" onClick={createQr} disabled={loading || !policy.allowed}>
             <QrCode size={17} /> {loading ? "생성 중" : "QR 체크인 시작"}
           </Button>
         </div>
       )}
-      {checkinWindow && !expired ? <small>유효 시간: {new Date(checkinWindow.opens_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} ~ {new Date(checkinWindow.closes_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small> : null}
+      {checkinWindow && policy.allowed ? (
+        <small>유효 시간: {formatPolicyTime(policy.opensAt)} ~ {formatPolicyTime(policy.closesAt)}</small>
+      ) : null}
       {error ? <p className="attendance-qr-panel__error">{error}</p> : null}
     </section>
   );
