@@ -260,11 +260,18 @@ def attach_schedule_sessions(meetings, include_cancelled=False):
 @jwt_required()
 def my_meetings():
     user_id = int(get_jwt_identity())
-    attendance_count = Attendance.query.filter(
-        Attendance.user_id == user_id,
-        Attendance.meeting_session_id.isnot(None),
-        Attendance.status == "present",
-    ).count()
+    attendance_count = (
+        Attendance.query
+        .join(MeetingSession, Attendance.meeting_session_id == MeetingSession.id)
+        .filter(
+            Attendance.user_id == user_id,
+            Attendance.meeting_session_id.isnot(None),
+            Attendance.status == "present",
+            MeetingSession.status != "cancelled",
+            MeetingSession.start_at <= kst_now(),
+        )
+        .count()
+    )
     hosted_items = meetings_for_user(user_id, hosted=True)
     joined_items = meetings_for_user(user_id, status="approved")
     pending_items = meetings_for_user(user_id, status="pending")
@@ -292,6 +299,8 @@ def my_attendance_history():
         .filter(
             Attendance.user_id == user_id,
             Attendance.status.in_(["present", "absent"]),
+            MeetingSession.status != "cancelled",
+            MeetingSession.start_at <= kst_now(),
         )
         .order_by(MeetingSession.start_at.desc())
         .all()
