@@ -345,6 +345,7 @@ function MobileChatRoom() {
   const [mutedRooms, setMutedRooms] = useState([]);
   const [roomRefreshKey, setRoomRefreshKey] = useState(0);
   const [directRoomRefreshKey, setDirectRoomRefreshKey] = useState(0);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const [voteSelections, setVoteSelections] = useState({});
   const [voteConfirm, setVoteConfirm] = useState(null);
   const [privateChatNotice, setPrivateChatNotice] = useState("");
@@ -499,13 +500,27 @@ function MobileChatRoom() {
   }, [activeMessages.data?.items?.length]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const syncVisibleChat = () => {
       if (document.hidden || sending) return;
       const fetchDelta = isDirectChat ? fetchDirectDelta : fetchMeetingDelta;
-      fetchDelta().catch((pollError) => console.warn("Chat delta poll failed", pollError));
-    }, 30000);
-    return () => window.clearInterval(timer);
-  }, [sending, isDirectChat, chatRoomId, directRoomId]);
+      fetchDelta().catch((pollError) => console.warn("Chat delta sync failed", pollError));
+    };
+    const timer = window.setInterval(() => {
+      syncVisibleChat();
+    }, realtimeConnected ? 30000 : 5000);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) syncVisibleChat();
+    };
+    window.addEventListener("focus", syncVisibleChat);
+    window.addEventListener("online", syncVisibleChat);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncVisibleChat);
+      window.removeEventListener("online", syncVisibleChat);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [sending, isDirectChat, chatRoomId, directRoomId, realtimeConnected]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -525,9 +540,11 @@ function MobileChatRoom() {
   // Supabase realtime - 모임 채팅
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase || !chatRoomId) {
+      if (!directRoomId) setRealtimeConnected(false);
       return undefined;
     }
 
+    setRealtimeConnected(false);
     const refreshChat = () => {
       fetchMeetingDelta().catch((realtimeError) => console.warn("Chat realtime refresh failed", realtimeError));
       setRoomRefreshKey((value) => value + 1);
@@ -544,19 +561,24 @@ function MobileChatRoom() {
         },
         refreshChat
       )
-      .subscribe();
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
 
     return () => {
+      setRealtimeConnected(false);
       supabase.removeChannel(channel);
     };
-  }, [chatRoomId]);
+  }, [chatRoomId, directRoomId]);
 
   // Supabase realtime - 1:1 채팅
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase || !directRoomId) {
+      if (!chatRoomId) setRealtimeConnected(false);
       return undefined;
     }
 
+    setRealtimeConnected(false);
     const refreshDirectChat = () => {
       fetchDirectDelta().catch((realtimeError) => console.warn("Direct chat realtime refresh failed", realtimeError));
       setDirectRoomRefreshKey((value) => value + 1);
@@ -573,12 +595,15 @@ function MobileChatRoom() {
         },
         refreshDirectChat
       )
-      .subscribe();
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
 
     return () => {
+      setRealtimeConnected(false);
       supabase.removeChannel(channel);
     };
-  }, [directRoomId]);
+  }, [directRoomId, chatRoomId]);
 
   useEffect(() => {
     if (!chatReadOnly) return;
@@ -952,6 +977,7 @@ function MobileChatRoom() {
 
   const createVote = async (event) => {
     event.preventDefault();
+    if (voteSubmitting) return;
     if (!meeting?.id) return;
     const options = voteForm.options.map((option) => option.trim()).filter(Boolean);
     if (!voteForm.title.trim() || options.length < 2) {
@@ -1204,7 +1230,7 @@ function MobileChatRoom() {
   };
 
   const openUserProfile = async (sender) => {
-    if (!sender) return;
+    if (!sender || sender.is_anonymized) return;
     setProfilePreviewUser(sender);
     setProfileNotice("");
     if (!sender.id) return;
@@ -1247,6 +1273,7 @@ function MobileChatRoom() {
 
   const createNotice = async (event) => {
     event.preventDefault();
+    if (noticeSubmitting) return;
     if (!meeting?.id) return;
     if (!noticeForm.title.trim() || !noticeForm.content.trim()) {
       setNoticeError("공지 제목과 내용을 입력해주세요.");
@@ -1393,9 +1420,13 @@ function MobileChatRoom() {
                       >
                         {!mine && (
                           <div className="message-avatar">
-                            <button type="button" onClick={() => openUserProfile(message.sender)} aria-label="사용자 정보 보기">
-                              {message.sender?.profile_image_url ? <img src={message.sender.profile_image_url} alt="" /> : <UsersRound size={16} />}
-                            </button>
+                            {message.sender?.is_anonymized ? (
+                              <span aria-label="탈퇴한 사용자"><UsersRound size={16} /></span>
+                            ) : (
+                              <button type="button" onClick={() => openUserProfile(message.sender)} aria-label="사용자 정보 보기">
+                                {message.sender?.profile_image_url ? <img src={message.sender.profile_image_url} alt="" /> : <UsersRound size={16} />}
+                              </button>
+                            )}
                           </div>
                         )}
 
@@ -1617,7 +1648,7 @@ function MobileChatRoom() {
               {!splitCommaText(profilePreviewUser.profile?.preferred_sports).length ? <span>선호 종목 미설정</span> : null}
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '14px', width: '100%', boxSizing: 'border-box', padding: '0 16px' }}>
-              {String(profilePreviewUser.id) !== String(user?.id) && !isDirectChat && (
+              {String(profilePreviewUser.id) !== String(user?.id) && !isDirectChat && !profilePreviewUser.is_anonymized && (
                 <button
                   type="button"
                   onClick={() => requestPrivateChat(profilePreviewUser)}
@@ -1637,7 +1668,7 @@ function MobileChatRoom() {
                   1:1 톡
                 </button>
               )}
-              {String(profilePreviewUser.id) !== String(user?.id) && (
+              {String(profilePreviewUser.id) !== String(user?.id) && !profilePreviewUser.is_anonymized && (
                 <>
                   {hiddenChatStorageKey && hiddenChatUserIds.includes(String(profilePreviewUser.id)) ? (
                     <button
@@ -1698,7 +1729,7 @@ function MobileChatRoom() {
                   </button>
                 </>
               )}
-              {isRoomHost && String(profilePreviewUser.id) !== String(user?.id) && (
+              {isRoomHost && String(profilePreviewUser.id) !== String(user?.id) && !profilePreviewUser.is_anonymized && (
                 <button
                   type="button"
                   onClick={() => kickParticipant(profilePreviewUser.id, profilePreviewUser.nickname)}
@@ -2200,6 +2231,7 @@ function MobileChatRoom() {
                     room?.other_user && (
                       <button
                         type="button"
+                        disabled={room.other_user.is_anonymized}
                         onClick={() => { setDrawerOpen(false); openUserProfile(room.other_user); }}
                         style={{
                           display: 'flex',
@@ -2211,7 +2243,7 @@ function MobileChatRoom() {
                           background: 'none',
                           borderRadius: '10px',
                           textAlign: 'left',
-                          cursor: 'pointer'
+                          cursor: room.other_user.is_anonymized ? 'default' : 'pointer'
                         }}
                       >
                         <div style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2243,6 +2275,7 @@ function MobileChatRoom() {
                         >
                           <button
                             type="button"
+                            disabled={pUser.is_anonymized}
                             onClick={() => { setDrawerOpen(false); openUserProfile(pUser); }}
                             style={{
                               display: 'flex',
@@ -2251,7 +2284,7 @@ function MobileChatRoom() {
                               border: 0,
                               background: 'none',
                               textAlign: 'left',
-                              cursor: 'pointer',
+                              cursor: pUser.is_anonymized ? 'default' : 'pointer',
                               flex: 1
                             }}
                           >

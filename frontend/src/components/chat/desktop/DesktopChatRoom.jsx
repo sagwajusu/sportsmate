@@ -459,6 +459,7 @@ function DesktopChatRoom() {
   const [roomRefreshKey, setRoomRefreshKey] = useState(0);
   const [directRefreshKey, setDirectRefreshKey] = useState(0);
   const [directRoomRefreshKey, setDirectRoomRefreshKey] = useState(0);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const [chatListMode, setChatListMode] = useState(isDirectChat ? "direct" : "meeting");
   const [talkSearchOpen, setTalkSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -747,13 +748,27 @@ function DesktopChatRoom() {
   };
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const syncVisibleChat = () => {
       if (document.hidden || sending) return;
       const fetchDelta = isDirectChat ? fetchDirectDelta : fetchMeetingDelta;
-      fetchDelta().catch((pollError) => console.warn("Chat delta poll failed", pollError));
-    }, 30000);
-    return () => window.clearInterval(timer);
-  }, [sending, isDirectChat, chatRoomId, directRoomId]);
+      fetchDelta().catch((pollError) => console.warn("Chat delta sync failed", pollError));
+    };
+    const timer = window.setInterval(() => {
+      syncVisibleChat();
+    }, realtimeConnected ? 30000 : 5000);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) syncVisibleChat();
+    };
+    window.addEventListener("focus", syncVisibleChat);
+    window.addEventListener("online", syncVisibleChat);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncVisibleChat);
+      window.removeEventListener("online", syncVisibleChat);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [sending, isDirectChat, chatRoomId, directRoomId, realtimeConnected]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -782,9 +797,11 @@ function DesktopChatRoom() {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase || !chatRoomId) {
+      if (!directRoomId) setRealtimeConnected(false);
       return undefined;
     }
 
+    setRealtimeConnected(false);
     const refreshChat = () => {
       fetchMeetingDelta().catch((realtimeError) => console.warn("Chat realtime refresh failed", realtimeError));
       setRoomRefreshKey((value) => value + 1);
@@ -797,18 +814,23 @@ function DesktopChatRoom() {
         table: "chat_messages",
         filter: `chat_room_id=eq.${chatRoomId}`
       }, refreshChat)
-      .subscribe();
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
 
     return () => {
+      setRealtimeConnected(false);
       supabase.removeChannel(channel);
     };
-  }, [chatRoomId]);
+  }, [chatRoomId, directRoomId]);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase || !directRoomId) {
+      if (!chatRoomId) setRealtimeConnected(false);
       return undefined;
     }
 
+    setRealtimeConnected(false);
     const refreshDirectChat = () => {
       fetchDirectDelta().catch((realtimeError) => console.warn("Direct chat realtime refresh failed", realtimeError));
       setDirectRoomRefreshKey((value) => value + 1);
@@ -821,12 +843,15 @@ function DesktopChatRoom() {
         table: "direct_chat_messages",
         filter: `direct_chat_room_id=eq.${directRoomId}`
       }, refreshDirectChat)
-      .subscribe();
+      .subscribe((status) => {
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
 
     return () => {
+      setRealtimeConnected(false);
       supabase.removeChannel(channel);
     };
-  }, [directRoomId]);
+  }, [directRoomId, chatRoomId]);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase || !meeting?.id) return undefined;
@@ -1198,6 +1223,7 @@ function DesktopChatRoom() {
 
   const createVote = async (event) => {
     event.preventDefault();
+    if (voteSubmitting) return;
     if (!meeting?.id) return;
     if (chatReadOnly) {
       setVoteError("마감된 모임에서는 투표를 새로 만들 수 없습니다.");
@@ -1307,6 +1333,7 @@ function DesktopChatRoom() {
   const createNotice = async (event) => {
     event.preventDefault();
     if (!meeting?.id) return;
+    if (noticeSubmitting) return;
     if (chatReadOnly) {
       setNoticeError("마감된 모임에서는 공지를 새로 등록할 수 없습니다.");
       return;
@@ -1873,8 +1900,8 @@ function DesktopChatRoom() {
                   );
                   return (
                     <div key={participant.id || participant.user_id} className={`talk-member-row ${isMe ? "is-self" : ""}`}>
-                      {isMe ? (
-                        <div className="talk-member-self" aria-label={`${senderLabel(participantUser)} 본인`}>
+                      {isMe || participantUser.is_anonymized ? (
+                        <div className="talk-member-self" aria-label={isMe ? `${senderLabel(participantUser)} 본인` : "탈퇴한 사용자"}>
                           {memberContent}
                         </div>
                       ) : (
@@ -1942,10 +1969,17 @@ function DesktopChatRoom() {
                       >
                         <div className="talk-message-main">
                           {!mine && !isSystemMessage(message) ? (
-                            <button className="talk-sender-button" type="button" onClick={() => setProfilePreviewUser(message.sender)}>
-                              {message.sender?.profile_image_url ? <img src={message.sender.profile_image_url} alt="" /> : <span><UsersRound size={13} /></span>}
-                              <b>{senderLabel(message.sender)}</b>
-                            </button>
+                            message.sender?.is_anonymized ? (
+                              <div className="talk-sender-button" aria-label="탈퇴한 사용자">
+                                <span><UsersRound size={13} /></span>
+                                <b>{senderLabel(message.sender)}</b>
+                              </div>
+                            ) : (
+                              <button className="talk-sender-button" type="button" onClick={() => setProfilePreviewUser(message.sender)}>
+                                {message.sender?.profile_image_url ? <img src={message.sender.profile_image_url} alt="" /> : <span><UsersRound size={13} /></span>}
+                                <b>{senderLabel(message.sender)}</b>
+                              </button>
+                            )
                           ) : null}
                           {(message.reply_to_message_id || message.reply_to_content) ? (
                             <button
@@ -2096,7 +2130,7 @@ function DesktopChatRoom() {
             </strong>
             <p>{profilePreviewUser.profile?.region || "활동 지역 미설정"}</p>
             {privateChatNotice ? <p className="chat-profile-sheet__notice">{privateChatNotice}</p> : null}
-            {!isProfilePreviewMe ? (
+            {!isProfilePreviewMe && !profilePreviewUser.is_anonymized ? (
               <div className="chat-profile-sheet__actions">
                 <button type="button" onClick={() => requestPrivateChat(profilePreviewUser)}>1:1 톡</button>
                 {(() => {
