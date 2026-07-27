@@ -60,3 +60,44 @@ docker compose ps
 
 The frontend Nginx container proxies `/api/*` to the Compose service named
 `backend`, so the service name must remain unchanged.
+
+## 5. Run behind the public Oracle Nginx
+
+The public server already uses host Nginx for ports 80 and 443, so use the
+production Compose file. It binds the frontend container only to
+`127.0.0.1:8080` and does not expose the backend directly.
+
+```bash
+docker compose -f docker-compose.production.yml pull
+docker compose -f docker-compose.production.yml up -d
+docker compose -f docker-compose.production.yml ps
+```
+
+Use `deploy/nginx/sportsmate.everytriplog.com.conf` as the host Nginx proxy
+template. For an existing HTTPS server block, copy its `location /` block into
+the current configuration, then verify and reload Nginx:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+The request path is:
+
+`sportsmate.everytriplog.com` -> host Nginx -> frontend container -> backend
+container -> database.
+
+The server's `backend/.env` must include:
+
+```env
+FRONTEND_ORIGIN=https://sportsmate.everytriplog.com
+```
+
+The frontend image must be built with:
+
+```env
+VITE_API_BASE_URL=/api/v1
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon-or-publishable-key>
+VITE_QR_PUBLIC_ORIGIN=https://sportsmate.everytriplog.com
+```
